@@ -4,7 +4,7 @@ Authorization layer for AI purchasing agents
 
 ## Disclosure of pre-existing work
 
-**Repository scaffold.** This repository was created on 30 July 2026 with a README stub, and the setup commits — `.gitignore`, `.env.example`, `CLAUDE.md`, this README, and the checkpoints file — were made on 31 July 2026, before the build window opened. No application code was written before the window.
+**Repository scaffold.** This repository was created on 30 July 2026 with a README stub, and the setup commits — `.gitignore`, `.env.example`, `CLAUDE.md` and this README — were made on 31 July 2026, before the build window opened. It contains no application code.
 
 **Rehearsal.** A private rehearsal was run on 30–31 July 2026 to de-risk the Prava sandbox integration. It confirmed the real request and response shapes, established that a payment session requires an interactive browser approval step before a credential is issued, and measured policy-compilation latency at 24–30s. **No code from that rehearsal was used here.** The rehearsal repository is private and available to judges on request.
 
