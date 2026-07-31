@@ -254,15 +254,31 @@ committed.** This is decided — do not re-open it.
 - **Allow-list.** Every command approved in a session becomes a permanent rule in
   `.claude/settings.local.json`, and write-capable rules such as `git add -A` creep back in over a
   long build. Pruning once does not hold. Re-read and prune anything pre-approving a write at hour 20.
-- **History scan.** Grep *full git history and reflog*, not just the working tree, for the key
-  prefixes `sk_test`, `sk_live`, `sk-ant`, `pk_test`, `pk_live` (each followed by its separator),
-  plus Bearer tokens, JWTs, and any 16-digit run. Report **file and commit locations only — never the
-  matched content**; `git grep -l` prints `commit:path` and no content, so prefer it. Re-run at hour
-  20.
+- **History scan.** Scan *full git history and reflog*, not just the working tree. Report **file and
+  commit locations only — never the matched content**. Use `git grep -l`, which prints `commit:path`
+  and no content:
 
-  The trailing separator is omitted from the five prefixes above so that this file does not match its
-  own scan. Keep it that way — a scan that always returns the same benign hit teaches you to ignore
-  hits, which is the failure mode the scan exists to prevent. A clean run must mean clean.
+  ```bash
+  REVS=$(git rev-list --all --reflog); git grep -l -I -E "<pattern>" $REVS
+  ```
+
+  Patterns — each key prefix requires 8+ key characters after it, so prose that merely *names* a
+  prefix does not match:
+
+  | What | Pattern |
+  |---|---|
+  | Stripe-style secret | `sk_test_[A-Za-z0-9]{8,}` · `sk_live_[A-Za-z0-9]{8,}` |
+  | Anthropic | `sk-ant-[A-Za-z0-9_-]{8,}` |
+  | Stripe-style publishable | `pk_test_[A-Za-z0-9]{8,}` · `pk_live_[A-Za-z0-9]{8,}` |
+  | Bearer token | `[Bb]earer[[:space:]]+[A-Za-z0-9._~+/=-]{8,}` |
+  | JWT | `eyJ[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]*` |
+  | 16-digit run | `[0-9]{16}` · `([0-9][ -]?){15}[0-9]` |
+
+  The entropy requirement is deliberate. A bare-prefix pattern matches this very file and returns the
+  same benign hit forever, which teaches you to ignore hits — the exact failure the scan exists to
+  prevent. **A clean run must mean clean.** Baseline at hour 0: clean on all nine patterns across the
+  whole history. If a hit ever appears, report the location and stop for instruction before any
+  history rewrite.
 
 ## Commands
 
