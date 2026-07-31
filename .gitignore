@@ -10,6 +10,12 @@ credentials.json
 *.pem
 *.key
 
+# --- Local tool config -------------------------------------------------------
+# Machine-local permission rules (deny git add -A and friends), not team config.
+# A global core.excludesFile already ignores this path, but that is invisible to
+# anyone reading the repo — so the intent is stated here where the build plan is.
+.claude/settings.local.json
+
 # --- Build / dependency output ---------------------------------------------
 node_modules
 dist
