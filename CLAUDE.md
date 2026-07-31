@@ -254,9 +254,15 @@ committed.** This is decided — do not re-open it.
 - **Allow-list.** Every command approved in a session becomes a permanent rule in
   `.claude/settings.local.json`, and write-capable rules such as `git add -A` creep back in over a
   long build. Pruning once does not hold. Re-read and prune anything pre-approving a write at hour 20.
-- **History scan.** Grep *full git history*, not just the working tree, for `sk_test_`, `sk_live_`,
-  `sk-ant-`, `pk_test_`, `pk_live_`, Bearer tokens, JWTs, and any 16-digit run. Report **file and
-  commit locations only — never the matched content.** Re-run at hour 20.
+- **History scan.** Grep *full git history and reflog*, not just the working tree, for the key
+  prefixes `sk_test`, `sk_live`, `sk-ant`, `pk_test`, `pk_live` (each followed by its separator),
+  plus Bearer tokens, JWTs, and any 16-digit run. Report **file and commit locations only — never the
+  matched content**; `git grep -l` prints `commit:path` and no content, so prefer it. Re-run at hour
+  20.
+
+  The trailing separator is omitted from the five prefixes above so that this file does not match its
+  own scan. Keep it that way — a scan that always returns the same benign hit teaches you to ignore
+  hits, which is the failure mode the scan exists to prevent. A clean run must mean clean.
 
 ## Commands
 
