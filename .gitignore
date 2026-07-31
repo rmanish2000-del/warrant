@@ -1,0 +1,27 @@
+# --- Secrets ---------------------------------------------------------------
+# .env holds real keys. .env.* covers every variant, including the Notepad
+# footgun ".env.txt". The negation below must stay AFTER the .env.* rule or
+# the template is swallowed by its own pattern.
+.env
+.env.*
+!.env.example
+
+credentials.json
+*.pem
+*.key
+
+# --- Build / dependency output ---------------------------------------------
+node_modules
+dist
+
+# --- Captured provider traffic ---------------------------------------------
+# Recorded request/response pairs carry live session ids, tokens and PANs.
+# Nothing generated is ever committed; `npm run demo` regenerates it.
+*-exchanges.json
+*-capture.json
+*.raw.json
+raw/
+captures/
+
+# --- Generated demo artifacts ----------------------------------------------
+demo-policy*.json
