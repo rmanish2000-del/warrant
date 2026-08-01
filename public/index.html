@@ -168,6 +168,12 @@
     <div id="detail"></div>
   </section>
 
+  <section id="payment-dock" class="hidden">
+    <h2>5b · Sandbox payment — the provider's surface</h2>
+    <div id="dock-label" class="muted"></div>
+    <div id="dock-body" style="margin-top:10px"></div>
+  </section>
+
   <section id="feed-section" class="hidden">
     <h2>6 · Activity</h2>
     <table>
@@ -209,10 +215,11 @@ const CANNED = [
 /* Camera-safe wording — no raw states on screen. */
 const PAYMENT_WORDS = {
   requested: "Session requested — contacting the payment provider",
-  awaiting_verification: "Awaiting verification — the provider's session clock applies (~15 min, theirs)",
-  confirmed: "Confirmed by the provider",
+  awaiting_verification: "Awaiting verification — approve in the sandbox panel below (the provider's session clock applies, theirs)",
+  confirmed: "Confirmed by the provider — see the sandbox panel",
   declined: "Declined by the provider",
   unavailable: "Provider unavailable — the decision and its record are unaffected",
+  lapsed: "Session lapsed — the provider's window closed; the authorization record is unaffected",
 };
 
 async function api(path, body) {
@@ -327,7 +334,8 @@ function renderPayment(d) {
   }
   if (d.approval && d.approval.outcome === "pending") return "";
   if (!d.payment) {
-    return `<div class="payment">Payment leg not attached in this build phase — the authorization is recorded; execution attaches here later.</div>`;
+    if (state.paymentLeg && state.paymentLeg.startsWith("attached")) return "";
+    return `<div class="payment">Payment leg ${esc(state.paymentLeg || "not configured")} — the authorization and its record are complete without it.</div>`;
   }
   const words = PAYMENT_WORDS[d.payment.status] || "";
   const ref = d.payment.sessionRef ? ` · session ref <span class="mono">${esc(d.payment.sessionRef)}</span>` : "";
@@ -396,6 +404,52 @@ function renderRecords() {
      <td class="hash mono" title="${esc(r.recordHash)}">${esc(r.recordHash.slice(0, 16))}…</td></tr>`).join("");
 }
 
+/**
+ * The payment dock lives OUTSIDE the re-rendered detail panel so the
+ * provider's iframe survives every state poll — re-rendering it mid-passkey
+ * would destroy the human's approval in progress. The iframe is (re)built
+ * only when the session reference changes; the refusal view never depends
+ * on anything in here.
+ */
+function updateDock() {
+  const dock = $("payment-dock");
+  const holder = $("dock-body");
+  const label = $("dock-label");
+  const withPayment = state.decisions.filter((d) => d.payment);
+  if (withPayment.length === 0) { dock.classList.add("hidden"); return; }
+  const d = withPayment[withPayment.length - 1];
+  const p = d.payment;
+  dock.classList.remove("hidden");
+
+  if (p.status === "awaiting_verification" && p.iframeUrl) {
+    label.innerHTML = `Provider session <span class="mono">${esc(p.sessionRef)}</span> ·
+      their window closes ${p.expiresAtIso ? new Date(p.expiresAtIso).toLocaleTimeString() : "—"}
+      (the provider's clock, not the warrant's) · complete the passkey below`;
+    if (holder.dataset.sessionRef !== p.sessionRef) {
+      holder.dataset.sessionRef = p.sessionRef;
+      holder.innerHTML = "";
+      const frame = document.createElement("iframe");
+      frame.src = p.iframeUrl;
+      frame.allow = "publickey-credentials-get *; publickey-credentials-create *";
+      frame.style.cssText = "width:100%;height:560px;border:1px solid var(--line);border-radius:8px;background:#fff";
+      holder.appendChild(frame);
+    }
+    return;
+  }
+  holder.dataset.sessionRef = "";
+  if (p.status === "confirmed") {
+    label.textContent = "";
+    holder.innerHTML = `<div style="border:2px solid var(--allow);border-radius:10px;padding:16px 20px;background:#f2fbf5;font-size:19px">
+      <span class="mono">visa_confirmation:</span> <strong style="font-size:24px">“${esc(p.visaConfirmation || "")}”</strong>
+      <div class="muted" style="margin-top:6px">The provider's word, from their own confirmation call ·
+      session <span class="mono">${esc(p.sessionRef || "")}</span> · ${esc(d.supplier)} · ${rupees(d.amount)}</div>
+    </div>`;
+  } else {
+    label.textContent = "";
+    holder.innerHTML = `<div class="payment">${esc(PAYMENT_WORDS[p.status] || "")}${p.sessionRef ? ` · session <span class="mono">${esc(p.sessionRef)}</span>` : ""}</div>`;
+  }
+}
+
 function render() {
   if (!state) return;
   badge();
@@ -426,6 +480,7 @@ function render() {
   $("records-section").classList.toggle("hidden", !active || state.records.length === 0);
   $("btn-seed").disabled = state.records.length > 0;
   if (active) { renderFeed(); renderRecords(); renderDetail(); }
+  updateDock();
 }
 
 function setState(next) { state = next; lastStateJson = JSON.stringify(next); render(); }

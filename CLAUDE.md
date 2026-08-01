@@ -278,8 +278,27 @@ Prava is **sandbox only**. The correct API reference is on disk at
 Facts established and safe to rely on: a payment session requires an interactive browser approval
 step before a credential is issued; `currency: "INR"` with `country_code_iso2: "IN"` creates a session
 on the sandbox host and renders as ₹; `merchant_details` is the **destination merchant**, forwarded to
-Visa to scope the credential — not the integrating app. Provider interaction mechanics beyond this are
-deliberately unspecified in the pack pending verification.
+Visa to scope the credential — not the integrating app.
+
+Verified live (1 Aug, probe + implementation in `src/provider/prava.ts`):
+
+- Base URL `https://sandbox.api.prava.space` only; `api.prava.space` is production — never call it.
+- `POST /v1/sessions` → **201**; ids come back as `session_id` with prefix `ses_` (no `id` field);
+  amounts are strings (`total_amount`, `product_details[].unit_price` — a wrong name errors two
+  levels up as `purchase_context: ["Required"]`); use the server's `expires_at`, never a computed
+  15 minutes; `session_token` is dropped at the boundary and stored nowhere.
+- The flow is not server-only: the create response's `iframe_url` opens the provider's approval
+  page (rendered ONLY as iframe src, in the console's payment dock, with WebAuthn permissions);
+  `card.card_id` pre-selects the saved card but never skips the passkey — by design.
+- **THE TRAP**: never wait for `status === "completed"` — it never arrives. Readiness is
+  `transactions[0].line_items[0].token` existing while status is still `awaiting_result`.
+  Pre-passkey the response is `status: "pending"` with `transactions: []` (empty).
+- Credential values (`token`, `dynamic_cvv`, expiry) never leave `pollResult` — only `txn_ref_id`
+  crosses the port. `POST /v1/sessions/{id}/report-status` with `txn_status: "APPROVED"` is
+  mandatory; its `visa_confirmation` ("SUCCESS") is surfaced in the UI — the provider's own word.
+- Sessions are single-use, ~15 min, fresh session per attempt; a poll cycle costs ~3.26s.
+- Saved card auto-discovered at server boot via `/v1/listCards` (default card), or pinned with
+  `PRAVA_CARD_ID`. Seeded history's approvals never execute — no session is created for the seed.
 
 ## Repository conventions
 
@@ -342,6 +361,8 @@ committed.** This is decided — do not re-open it.
 - `npm run demo:reset` — replays the exact cached compile; never calls the API. Every retake after the compile take uses this.
 - `npm start` — operator console at `http://127.0.0.1:3000` (node:http, zero deps; the server is plumbing, not the product). One window: compile streams to the page, flags resolve by click, proposals and approvals are buttons.
 - `npm run demo:headless` — the five canonical scenarios end to end without the browser; recording fallback and exit-code check (non-zero on any deviation from the canonical table).
+- `npm run demo:nopay` — the console with the payment leg OFF (the recording card's fallback if the payment leg misbehaves on camera). DENY, approvals, and the record are unaffected.
+- `npm run prava:probe` — one throwaway sandbox session + saved-card list, raw response shapes printed with credential-bearing values redacted. Run before trusting any parser change.
 
 Record build, lint, single-test, and `npm run demo` invocations here as they are established, so
 this section stays the fastest way to run the project.

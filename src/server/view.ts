@@ -26,12 +26,23 @@ export interface DecisionViewModel {
     readonly approvedBy: string | null;
     readonly atIso: string | null;
   } | null;
-  readonly payment: { readonly status: string; readonly sessionRef: string | null } | null;
+  /**
+   * iframeUrl is the one deliberate URL passthrough: the provider's approval
+   * page, rendered only as an iframe src. Everything else stays two fields +
+   * the provider's own expiry and its confirmation word.
+   */
+  readonly payment: {
+    readonly status: string;
+    readonly sessionRef: string | null;
+    readonly iframeUrl: string | null;
+    readonly expiresAtIso: string | null;
+    readonly visaConfirmation: string | null;
+  } | null;
   readonly outboundCalls: number;
   readonly sessionsAtDecision: number;
 }
 
-export function stateView(flow: ConsoleFlow, cacheAvailable: boolean) {
+export function stateView(flow: ConsoleFlow, cacheAvailable: boolean, paymentLeg: string) {
   const draft = flow.draft;
   const warrant = flow.warrant;
   const ledger = flow.log.ledger();
@@ -71,7 +82,15 @@ export function stateView(flow: ConsoleFlow, cacheAvailable: boolean) {
               }
             : { outcome: 'pending', approvedBy: null, atIso: null }
           : null,
-      payment: payment ? { status: payment.status, sessionRef: payment.sessionRef } : null,
+      payment: payment
+        ? {
+            status: payment.status,
+            sessionRef: payment.sessionRef,
+            iframeUrl: payment.iframeUrl,
+            expiresAtIso: payment.expiresAtIso,
+            visaConfirmation: payment.visaConfirmation,
+          }
+        : null,
       outboundCalls: flow.outboundCallsFor(record.id),
       sessionsAtDecision: flow.sessionsAtDecision(record.id),
     };
@@ -81,6 +100,8 @@ export function stateView(flow: ConsoleFlow, cacheAvailable: boolean) {
 
   return {
     cacheAvailable,
+    /** 'attached (Prava sandbox)' · 'off (--nopay)' · 'not configured'. Never a key. */
+    paymentLeg,
     compile: {
       provenance: flow.provenance,
       model: flow.compileMeta.model ?? null,

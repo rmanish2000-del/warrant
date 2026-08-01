@@ -16,21 +16,55 @@ import { readCompileCache, writeCompileCache, CACHE_PATH } from '../compiler/cac
 import { ConfirmationError } from '../compiler/confirm.ts';
 import { CompilerRejection } from '../compiler/validityGuard.ts';
 import { ConsoleFlow, seedHistory } from '../console/flow.ts';
+import { PravaSandboxProvider } from '../provider/prava.ts';
 import { EnforcementError } from '../records/append.ts';
 import { stateView } from './view.ts';
 
 const PORT = Number(process.env['PORT'] ?? 3000);
 const PUBLIC_DIR = join(process.cwd(), 'public');
 
-/** Provider intentionally not attached in this phase; the console says so honestly. */
-const flow = new ConsoleFlow({ provider: null, clock: () => Date.now() });
+/**
+ * Payment leg attachment — the ONLY place the secret key is read, and it goes
+ * nowhere but the provider's Authorization header. `--nopay` (npm run
+ * demo:nopay) is the on-camera fallback: same console, payment leg off, DENY
+ * and the whole record path unaffected.
+ */
+const noPay = process.argv.includes('--nopay');
+const secretKey = process.env['PRAVA_SK'];
+let provider = null as import('../console/flow.ts').ProviderPort | null;
+let paymentLeg = 'not configured';
+if (noPay) {
+  paymentLeg = 'off (--nopay)';
+} else if (secretKey) {
+  let prava = new PravaSandboxProvider({ secretKey, cardId: process.env['PRAVA_CARD_ID'] ?? null });
+  try {
+    const cardId = process.env['PRAVA_CARD_ID'] ?? (await prava.discoverDefaultCardId());
+    if (cardId) {
+      prava = prava.withCard(cardId);
+      process.stdout.write(`payment leg: Prava sandbox attached · saved card pre-selected (${cardId})\n`);
+    } else {
+      process.stdout.write(
+        'payment leg: Prava sandbox attached · NO saved card — enrollment (~193s) would happen on camera\n',
+      );
+    }
+    provider = prava;
+    paymentLeg = 'attached (Prava sandbox)';
+  } catch (cause) {
+    process.stdout.write(`payment leg: NOT attached — ${(cause as Error).message}\n`);
+    paymentLeg = 'not configured';
+  }
+} else {
+  process.stdout.write('payment leg: not configured (PRAVA_SK missing) — refusals and records unaffected\n');
+}
+
+const flow = new ConsoleFlow({ provider, clock: () => Date.now() });
 
 const json = (res: ServerResponse, status: number, body: unknown) => {
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
   res.end(JSON.stringify(body));
 };
 
-const state = () => stateView(flow, readCompileCache() !== null);
+const state = () => stateView(flow, readCompileCache() !== null, paymentLeg);
 
 const readBody = async (req: IncomingMessage): Promise<Record<string, unknown>> => {
   const chunks: Buffer[] = [];
