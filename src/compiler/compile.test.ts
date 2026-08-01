@@ -22,16 +22,14 @@ const fakeStreamClient = (text: string, stopReason = 'end_turn'): Anthropic => {
       content: text.length > 0 ? [{ type: 'text', text }] : [],
     }),
   };
-  return { beta: { messages: { stream: () => stream } } } as unknown as Anthropic;
+  return { messages: { stream: () => stream } } as unknown as Anthropic;
 };
 
 const throwingClient = (message: string): Anthropic =>
   ({
-    beta: {
-      messages: {
-        stream: () => {
-          throw new Error(message);
-        },
+    messages: {
+      stream: () => {
+        throw new Error(message);
       },
     },
   }) as unknown as Anthropic;

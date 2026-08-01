@@ -3,9 +3,15 @@
  *
  * Model configuration (recorded in CLAUDE.md): claude-opus-5, adaptive
  * thinking with summarized display (the 24–30s wait streams visible
- * reasoning, not a dead pause), structured output, server-side refusal
- * fallback. Effort stays high — lowering it saves seconds but risks
- * missing the overlap flags, and the flags are a demo beat.
+ * reasoning, not a dead pause), structured output. Effort stays high —
+ * lowering it saves seconds but risks missing the overlap flags, and the
+ * flags are a demo beat.
+ *
+ * NO server-side refusal fallback, deliberately. The console's LIVE COMPILE
+ * badge must mean exactly one thing — this model, this prompt. A silent
+ * server-side substitution keeps the badge green while the provenance
+ * underneath changes, which the operator cannot detect on camera. A refusal
+ * therefore fails loudly into the labelled stub instead.
  *
  * Failure semantics, deliberately asymmetric:
  * - API unavailable (network, auth, rate limit, server error) or the model
@@ -63,11 +69,9 @@ export async function compilePolicy(
   let model: string;
   let stopReason: string | null;
   try {
-    const stream = client.beta.messages.stream({
+    const stream = client.messages.stream({
       model: COMPILER_MODEL,
       max_tokens: 16_000,
-      betas: ['server-side-fallback-2026-07-01'],
-      fallbacks: 'default',
       thinking: { type: 'adaptive', display: 'summarized' },
       output_config: {
         effort: 'high',
@@ -105,7 +109,7 @@ export async function compilePolicy(
       draft: stubDraft(),
       reason:
         stopReason === 'refusal'
-          ? 'model declined the request (safety classifier), including any server-side fallback'
+          ? 'model declined the request (safety classifier) — no silent substitution; replay the cache'
           : `model returned no structured output (stop_reason: ${stopReason})`,
     };
   }
