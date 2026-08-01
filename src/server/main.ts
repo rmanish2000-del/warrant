@@ -35,6 +35,7 @@ let provider = null as import('../console/flow.ts').ProviderPort | null;
 let paymentLeg = 'not configured';
 if (noPay) {
   paymentLeg = 'off (--nopay)';
+  process.stdout.write('payment leg: OFF (--nopay) — refusals, approvals, and the record run without it\n');
 } else if (secretKey) {
   let prava = new PravaSandboxProvider({ secretKey, cardId: process.env['PRAVA_CARD_ID'] ?? null });
   try {
