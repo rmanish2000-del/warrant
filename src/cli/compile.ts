@@ -29,18 +29,24 @@ const DEMO_POLICY =
 
 const out = (text: string) => process.stdout.write(text);
 
-const banner = (lines: string[]) => {
+/**
+ * ANSI colours so live vs cached vs refused is unmissable on the terminal —
+ * the same rule as the page badge: no two states may look alike at a glance.
+ */
+const COLOR = { green: '\x1b[1;32m', cyan: '\x1b[1;36m', red: '\x1b[1;31m', amber: '\x1b[1;33m', off: '\x1b[0m' };
+
+const banner = (color: string, lines: string[]) => {
   const width = Math.max(...lines.map((l) => l.length)) + 4;
-  out(`\n${'='.repeat(width)}\n`);
+  out(`\n${color}${'='.repeat(width)}\n`);
   for (const line of lines) out(`  ${line}\n`);
-  out(`${'='.repeat(width)}\n\n`);
+  out(`${'='.repeat(width)}${COLOR.off}\n\n`);
 };
 
 const describeResult = (result: CompileResult, policyText: string, compiledAt: string) => {
   if (result.source === 'stub') {
-    banner(['BUILT-IN FALLBACK — NOT A LIVE COMPILE', `reason: ${result.reason}`]);
+    banner(COLOR.amber, ['BUILT-IN FALLBACK — NOT A LIVE COMPILE', `reason: ${result.reason}`]);
   } else {
-    out(`\nLive compile — served by ${result.model} (prompt v${result.promptVersion})\n`);
+    banner(COLOR.green, [`LIVE COMPILE — served by ${result.model} (prompt v${result.promptVersion})`]);
   }
   out(`compiled at: ${compiledAt}\n`);
   out(`policy: ${policyText}\n\n`);
@@ -73,7 +79,7 @@ async function fresh(): Promise<number> {
     });
   } catch (cause) {
     if (cause instanceof CompilerRejection) {
-      banner([
+      banner(COLOR.red, [
         'COMPILE REFUSED — FAIL CLOSED',
         `stage: ${cause.stage}`,
         cause.message,
@@ -88,7 +94,7 @@ async function fresh(): Promise<number> {
   if (result.source === 'stub') {
     const existing = readCompileCache();
     if (existing && existing.result.source === 'model') {
-      banner([
+      banner(COLOR.amber, [
         'BUILT-IN FALLBACK — NOT A LIVE COMPILE',
         `reason: ${result.reason}`,
         `Kept the existing LIVE compile in ${CACHE_PATH} (not overwritten).`,
@@ -108,14 +114,25 @@ async function fresh(): Promise<number> {
 function reset(): number {
   const cached = readCompileCache();
   if (!cached) {
-    out(
-      `No cached compile at ${CACHE_PATH}.\n` +
-        'Run "npm run demo:fresh" once (that is the take that films the compile);\n' +
-        'every retake after it uses demo:reset.\n',
-    );
+    // 🔴 REFUSE — never silently recompile. Wording and flag ordering vary
+    // between compiles; a silent recompile mid-session desyncs every take
+    // shot after it. Exit fast; existing page/state untouched.
+    banner(COLOR.red, [
+      'REFUSED — NO CACHED COMPILE',
+      `${CACHE_PATH} does not exist. demo:reset NEVER compiles.`,
+      'Run "npm run demo:fresh" once (that is the take that films the compile);',
+      'every retake after it uses demo:reset. Existing page state is untouched.',
+    ]);
     return 1;
   }
-  out('Restored the exact cached compile — no API call was made.\n');
+  if (cached.result.source === 'stub') {
+    banner(COLOR.amber, ['CACHED REPLAY OF A FALLBACK — the cache holds a stub, not a live compile']);
+  } else {
+    banner(COLOR.cyan, [
+      `CACHED REPLAY — compiled ${cached.compiledAt}`,
+      'No API call was made. The stale timestamp is the tell.',
+    ]);
+  }
   describeResult(cached.result, cached.policyText, cached.compiledAt);
   return 0;
 }
