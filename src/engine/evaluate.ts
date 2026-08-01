@@ -57,7 +57,7 @@ export function evaluate(
   // Phrased positively so a NaN timestamp fails closed too.
   const withinValidity = at >= warrant.issuedAt && at < warrant.expiresAt;
   if (!withinValidity) {
-    return { decision: 'DENY', clause: null, reason: 'EXPIRED_MANDATE' };
+    return { decision: 'DENY', clause: null, reason: 'OUTSIDE_VALIDITY' };
   }
 
   if (!isWellFormed(proposal, warrant.policy.currency)) {

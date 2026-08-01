@@ -70,7 +70,8 @@ Decided so far:
   by a dedicated test (scenario C breaches the cap arithmetically and must still cite C1).
 - **Boundaries**: cap inclusive (total of exactly ₹15,000 escalates, +1 denies); threshold strict
   (exactly ₹5,000 allows). Validity is `issuedAt ≤ t < expiresAt`; outside it — including before
-  issuance and NaN timestamps — fails closed as expired-mandate.
+  issuance and NaN timestamps — fails closed with reason `OUTSIDE_VALIDITY` (the UI words the
+  expired case as an expired mandate, per the pack).
 
 The one structural rule that is fixed by the spec, and is the whole product claim:
 

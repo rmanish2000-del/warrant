@@ -52,13 +52,14 @@ export interface ClauseResolutions {
 
 /**
  * Denials that are not clause breaches — both fail closed.
- * EXPIRED_MANDATE — the proposal falls outside warrant validity (EV-06).
- *   Also used for a proposal timestamped before issuance: outside validity
- *   is outside validity.
+ * OUTSIDE_VALIDITY — the proposal falls outside warrant validity. Covers the
+ *   expired-mandate case (EV-06) and a proposal timestamped before issuance:
+ *   outside validity is outside validity. The UI renders the expired case as
+ *   an expired mandate, per the pack's wording.
  * INVALID_PROPOSAL — malformed input: missing supplier, zero / negative /
  *   non-integer amount, or currency mismatch (EV-07, EV-08, EV-09).
  */
-export type DenialReason = 'EXPIRED_MANDATE' | 'INVALID_PROPOSAL';
+export type DenialReason = 'OUTSIDE_VALIDITY' | 'INVALID_PROPOSAL';
 
 /** The constraint fields of the compiled warrant that the evaluator enforces. */
 export interface CompiledPolicy {
@@ -147,7 +148,7 @@ export interface Proposal {
  * - ALLOW      → clause null, reason null (nothing breached).
  * - ESCALATE   → determining clause C3 or C4.
  * - DENY       → determining clause C1 or C2, *or* a non-clause reason
- *                (expired mandate / invalid proposal) with clause null.
+ *                (outside validity / invalid proposal) with clause null.
  */
 export type Verdict =
   | { readonly decision: 'ALLOW'; readonly clause: null; readonly reason: null }

@@ -77,7 +77,7 @@ const escalated = (clause: 'C1' | 'C2' | 'C3' | 'C4'): Verdict => ({
   reason: null,
 });
 const denied = (clause: 'C1' | 'C2'): Verdict => ({ decision: 'DENY', clause, reason: null });
-const refused = (reason: 'EXPIRED_MANDATE' | 'INVALID_PROPOSAL'): Verdict => ({
+const refused = (reason: 'OUTSIDE_VALIDITY' | 'INVALID_PROPOSAL'): Verdict => ({
   decision: 'DENY',
   clause: null,
   reason,
@@ -271,10 +271,10 @@ describe('C4 — approved but never transacted (non-canonical two-supplier polic
 });
 
 describe('warrant validity (EV-06)', () => {
-  it('a proposal at exactly expiresAt is refused with the expired-mandate reason, no clause', () => {
+  it('a proposal at exactly expiresAt is refused as outside validity, no clause', () => {
     assert.deepEqual(
       evaluate(WARRANT, seedLedger(), inr('PackRight Supplies', 1_000), WARRANT.expiresAt),
-      refused('EXPIRED_MANDATE'),
+      refused('OUTSIDE_VALIDITY'),
     );
   });
 
@@ -288,14 +288,14 @@ describe('warrant validity (EV-06)', () => {
   it('expiry outranks every clause: an unapproved supplier after expiry is expired, not C1', () => {
     assert.deepEqual(
       evaluate(WARRANT, seedLedger(), inr('Unknown Vendor', 4_900), WARRANT.expiresAt + DAY),
-      refused('EXPIRED_MANDATE'),
+      refused('OUTSIDE_VALIDITY'),
     );
   });
 
   it('a proposal timestamped before issuance fails closed as outside validity', () => {
     assert.deepEqual(
       evaluate(WARRANT, seedLedger(), inr('PackRight Supplies', 1_000), T0 - 1),
-      refused('EXPIRED_MANDATE'),
+      refused('OUTSIDE_VALIDITY'),
     );
   });
 });
