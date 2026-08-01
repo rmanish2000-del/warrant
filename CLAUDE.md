@@ -75,6 +75,19 @@ Decided so far:
   (exactly ₹5,000 allows). Validity is `issuedAt ≤ t < expiresAt`; outside it — including before
   issuance and NaN timestamps — fails closed with reason `OUTSIDE_VALIDITY` (the UI words the
   expired case as an expired mandate, per the pack).
+- **Enforcement boundary** — `src/records/append.ts`. Approvals attach only to ESCALATE decisions;
+  session results only to executable ones (ALLOW / approved escalation); records are hash-chained
+  from a defined genesis. `src/console/flow.ts` is the app logic: the payment provider is an
+  injected port with exactly one call site behind `isExecutable` + a recorded approval, clock
+  injected, and provider responses narrowed by explicit field copy (allowlist — extra fields are
+  structurally unreachable). Seeded history goes through the boundary (first purchase escalates C4,
+  approved by `OPERATOR_ID`).
+- **Console** — `src/server/main.ts` (node:http, 127.0.0.1 only) + `public/index.html` (no
+  framework, no bundler). View-model in `src/server/view.ts` builds every field explicitly. Badge
+  semantics are load-bearing: green LIVE COMPILE only for a compile streamed in the current
+  browser session; CACHED REPLAY (blue dashed) and BUILT-IN FALLBACK (striped, loud) are visually
+  disjoint. The refusal view never depends on payment state; payment status words are camera-safe
+  (never `timeout` etc.). Warrant validity always renders as absolute dates.
 
 The one structural rule that is fixed by the spec, and is the whole product claim:
 
@@ -319,6 +332,8 @@ committed.** This is decided — do not re-open it.
 - `npm run typecheck` — `tsc --noEmit`, strict; `erasableSyntaxOnly` keeps every source file strippable.
 - `npm run demo:fresh` — the ONE live compile per recording session (needs `ANTHROPIC_API_KEY` in `.env`); streams the model's output and writes `demo-policy-compiled.json` (gitignored via `demo-policy*.json`).
 - `npm run demo:reset` — replays the exact cached compile; never calls the API. Every retake after the compile take uses this.
+- `npm start` — operator console at `http://127.0.0.1:3000` (node:http, zero deps; the server is plumbing, not the product). One window: compile streams to the page, flags resolve by click, proposals and approvals are buttons.
+- `npm run demo:headless` — the five canonical scenarios end to end without the browser; recording fallback and exit-code check (non-zero on any deviation from the canonical table).
 
 Record build, lint, single-test, and `npm run demo` invocations here as they are established, so
 this section stays the fastest way to run the project.
