@@ -306,8 +306,11 @@ Verified live (1 Aug, probe + implementation in `src/provider/prava.ts`):
   any second load shows "Session Already Used". The console therefore renders exactly one
   click-to-open anchor (`target="_blank"`, real user gesture, consumed on click); the provider's
   own popup fallback exists but is never used (the video bans popups; new tab is DECIDE-7-blessed).
-- The provider's FIDO clock runs from **session creation**, not from any click or page load —
-  the passkey must happen promptly after Approve regardless of what is on screen.
+- The provider's ~40s FIDO clock starts at **page load** — i.e. at the button click — not at
+  session creation (verified: an unloaded session stays `awaiting_verification` for minutes; every
+  observed `FIDO_START_FAILED` came ~40s after a load). Before the click, only the provider's
+  ~15-minute session expiry applies. Practical rule: click when ready, then do the passkey
+  immediately.
 - **THE TRAP**: never wait for `status === "completed"` — it never arrives. Readiness is
   `transactions[0].line_items[0].token` existing while status is still `awaiting_result`.
   Pre-passkey the response is `status: "pending"` with `transactions: []` (empty).
