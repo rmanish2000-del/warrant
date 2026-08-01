@@ -28,8 +28,9 @@ export interface DecisionViewModel {
   } | null;
   /**
    * iframeUrl is the one deliberate URL passthrough: the provider's approval
-   * page, rendered only as an iframe src. Everything else stays two fields +
-   * the provider's own expiry and its confirmation word.
+   * page, used only as the href of the click-to-open new-tab anchor (one
+   * load — the link is single-use). Everything else stays two fields + the
+   * provider's own expiry and its confirmation word.
    */
   readonly payment: {
     readonly status: string;

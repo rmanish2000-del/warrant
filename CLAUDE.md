@@ -297,8 +297,17 @@ Verified live (1 Aug, probe + implementation in `src/provider/prava.ts`):
   levels up as `purchase_context: ["Required"]`); use the server's `expires_at`, never a computed
   15 minutes; `session_token` is dropped at the boundary and stored nowhere.
 - The flow is not server-only: the create response's `iframe_url` opens the provider's approval
-  page (rendered ONLY as iframe src, in the console's payment dock, with WebAuthn permissions);
-  `card.card_id` pre-selects the saved card but never skips the passkey — by design.
+  page; `card.card_id` pre-selects the saved card but never skips the passkey — by design.
+- **Never embed the approval page — decided, verified live (1 Aug).** The collect page spawns its
+  own inner Visa FIDO iframe (`sbx.vts.auth.visa.com`); embedded under our origin that frame is
+  double-nested and its handshake stalls (spinner → retries → `FIDO_START_FAILED` at ~40s), while
+  the identical session opened top-level sails through to the ceremony. Additionally, **the
+  collect link is single-use per page LOAD** — an embed attempt or a tab reload consumes it and
+  any second load shows "Session Already Used". The console therefore renders exactly one
+  click-to-open anchor (`target="_blank"`, real user gesture, consumed on click); the provider's
+  own popup fallback exists but is never used (the video bans popups; new tab is DECIDE-7-blessed).
+- The provider's FIDO clock runs from **session creation**, not from any click or page load —
+  the passkey must happen promptly after Approve regardless of what is on screen.
 - **THE TRAP**: never wait for `status === "completed"` — it never arrives. Readiness is
   `transactions[0].line_items[0].token` existing while status is still `awaiting_result`.
   Pre-passkey the response is `status: "pending"` with `transactions: []` (empty).

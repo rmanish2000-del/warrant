@@ -105,6 +105,9 @@
                   border-radius: 8px; padding: 10px 14px; font-weight: 600; margin-top: 10px; display: none; }
   .payment { border: 1px dashed var(--line); border-radius: 8px; padding: 10px 14px; margin-top: 12px;
              font-size: 16px; }
+  .open-approval { display: inline-block; background: var(--ink); color: #fff; font-weight: 800;
+                   font-size: 19px; padding: 14px 24px; border-radius: 10px; text-decoration: none; }
+  .open-approval:hover { opacity: .92; }
   .validity { font-size: 16px; }
   .hidden { display: none !important; }
 </style>
@@ -216,7 +219,7 @@ const CANNED = [
 /* Camera-safe wording — no raw states on screen. */
 const PAYMENT_WORDS = {
   requested: "Session requested — contacting the payment provider",
-  awaiting_verification: "Awaiting verification — approve in the sandbox panel below (the provider's session clock applies, theirs)",
+  awaiting_verification: "Awaiting verification — open the provider's page from the sandbox panel below; their clock has been running since the session was created",
   confirmed: "Confirmed by the provider — see the sandbox panel",
   declined: "Provider closed the session without issuing a credential — the authorization record is unaffected",
   unavailable: "Provider unavailable — the decision and its record are unaffected",
@@ -406,12 +409,19 @@ function renderRecords() {
 }
 
 /**
- * The payment dock lives OUTSIDE the re-rendered detail panel so the
- * provider's iframe survives every state poll — re-rendering it mid-passkey
- * would destroy the human's approval in progress. The iframe is (re)built
- * only when the session reference changes; the refusal view never depends
- * on anything in here.
+ * The payment dock. The provider's approval page opens in a NEW TAB via a
+ * real anchor — never an iframe: embedding double-nests Visa's FIDO frame
+ * under our origin, which stalls the ceremony, and merely LOADING the page
+ * consumes the single-use link. One path only, one load only: the anchor is
+ * built once per session and is replaced by a note the moment it is clicked,
+ * so a second click (or a later poll) can never reopen or re-burn the link.
+ * The refusal view never depends on anything in here.
  */
+const openedSessions = new Set();
+function openedNote(sessionRef) {
+  return `<div class="payment"><strong>The provider's page is open in another tab — complete the passkey there, then come back; this panel updates by itself.</strong><br>
+    <span class="muted">Do not reload that tab: the link is single-use. If the tab was closed before the passkey, this session cannot be reopened. Session <span class="mono">${esc(sessionRef)}</span>.</span></div>`;
+}
 function updateDock() {
   const dock = $("payment-dock");
   const holder = $("dock-body");
@@ -425,20 +435,37 @@ function updateDock() {
   if (p.status === "awaiting_verification" && p.iframeUrl) {
     label.innerHTML = `Provider session <span class="mono">${esc(p.sessionRef)}</span> ·
       their window closes ${p.expiresAtIso ? new Date(p.expiresAtIso).toLocaleTimeString() : "—"}
-      (the provider's clock, not the warrant's) · complete the passkey below`;
+      — the provider's clock, and it has been running since the session was created`;
     if (holder.dataset.sessionRef !== p.sessionRef) {
       holder.dataset.sessionRef = p.sessionRef;
       holder.innerHTML = "";
-      const frame = document.createElement("iframe");
-      frame.src = p.iframeUrl;
-      frame.allow = "publickey-credentials-get *; publickey-credentials-create *";
-      frame.style.cssText = "width:100%;height:560px;border:1px solid var(--line);border-radius:8px;background:#fff";
-      holder.appendChild(frame);
+      if (openedSessions.has(p.sessionRef)) {
+        holder.innerHTML = openedNote(p.sessionRef);
+      } else {
+        const anchor = document.createElement("a");
+        anchor.href = p.iframeUrl;
+        anchor.target = "_blank";
+        anchor.rel = "noopener noreferrer";
+        anchor.className = "open-approval";
+        anchor.textContent = "Open sandbox approval — the provider's page ↗";
+        anchor.addEventListener("click", () => {
+          // The link is single-use per load: consume the anchor with the click.
+          openedSessions.add(p.sessionRef);
+          holder.innerHTML = openedNote(p.sessionRef);
+        });
+        const hint = document.createElement("div");
+        hint.className = "muted";
+        hint.style.marginTop = "8px";
+        hint.textContent =
+          "Opens once, in a new tab. Do the passkey immediately — the provider's clock is already running.";
+        holder.appendChild(anchor);
+        holder.appendChild(hint);
+      }
     }
     // Once per session, gated — a later poll (including the ones arriving
     // while the refusal is on screen) can never move the page again. Smooth
     // for the camera, with an instant fallback in case the animation is
-    // throttled: the passkey MUST end up on screen.
+    // throttled: the button MUST end up on screen.
     if (scrollGate.shouldScroll(p.sessionRef, p.status)) {
       dock.scrollIntoView({ behavior: "smooth", block: "start" });
       setTimeout(() => {

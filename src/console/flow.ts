@@ -48,7 +48,12 @@ export const CANONICAL_PROPOSALS = [
  */
 export interface CreatedSession {
   readonly sessionRef: string;
-  /** The provider's interactive approval page. Rendered ONLY as an iframe src, never as text. */
+  /**
+   * The provider's interactive approval page. Used ONLY as the href of a
+   * click-to-open new-tab anchor, never rendered as text and never embedded:
+   * embedding double-nests Visa's FIDO frame and stalls the ceremony, and
+   * merely loading the page consumes the single-use link.
+   */
   readonly iframeUrl: string;
   /** The provider's own expiry — displayed as theirs, never recomputed locally. */
   readonly expiresAtIso: string;
@@ -80,7 +85,7 @@ export interface PaymentView {
     | 'unavailable'
     | 'lapsed';
   readonly sessionRef: string | null;
-  /** Deliberate exception to the no-URL rule: needed as iframe src for the human's passkey step. */
+  /** Deliberate exception to the no-URL rule: the anchor href for the human's passkey step (new tab, one load). */
   readonly iframeUrl: string | null;
   readonly expiresAtIso: string | null;
   readonly visaConfirmation: string | null;
