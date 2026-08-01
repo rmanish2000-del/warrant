@@ -18,7 +18,7 @@ import { CompilerRejection } from '../compiler/validityGuard.ts';
 import { ConsoleFlow, seedHistory } from '../console/flow.ts';
 import { PravaSandboxProvider } from '../provider/prava.ts';
 import { EnforcementError } from '../records/append.ts';
-import { stateView } from './view.ts';
+import { exportView, stateView } from './view.ts';
 
 const PORT = Number(process.env['PORT'] ?? 3000);
 const PUBLIC_DIR = join(process.cwd(), 'public');
@@ -120,6 +120,13 @@ const handleCompile = async (req: IncomingMessage, res: ServerResponse) => {
 
 const routes: Record<string, (req: IncomingMessage, res: ServerResponse) => Promise<unknown> | unknown> = {
   'GET /api/state': (_req, res) => json(res, 200, state()),
+
+  // The authorization record as a self-contained JSON document (AR-05).
+  // Pretty-printed so a browser tab is a readable view of the export.
+  'GET /api/export': (_req, res) => {
+    res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+    res.end(JSON.stringify(exportView(flow, new Date().toISOString()), null, 2));
+  },
 
   'POST /api/compile': handleCompile,
 
