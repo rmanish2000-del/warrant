@@ -31,3 +31,16 @@ captures/
 
 # --- Generated demo artifacts ----------------------------------------------
 demo-policy*.json
+
+# --- OS junk -----------------------------------------------------------------
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# --- Local screen recordings -------------------------------------------------
+# Takes live in Videos\Screen Recordings, but a stray drop into the repo must
+# never be committed: recordings show real session ids on screen.
+*.mp4
+*.mkv
+*.mov
+*.webm
