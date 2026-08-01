@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Warrant — operator console (sandbox)</title>
+<style>
+  /* Built for a 1920×1008 recording: content 1440px, nothing under 15px. */
+  :root {
+    --allow: #0a7d33; --escalate: #b45309; --deny: #b91c1c;
+    --ink: #16181d; --muted: #5b616e; --line: #d8dbe2; --panel: #ffffff; --bg: #f2f3f6;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 16px/1.45 system-ui, "Segoe UI", sans-serif; }
+  main { max-width: 1440px; margin: 0 auto; padding: 16px 24px 64px; }
+  h2 { font-size: 19px; margin: 0 0 10px; }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+            padding: 16px 20px; margin-top: 16px; }
+  button { font: 600 16px system-ui; padding: 9px 16px; border-radius: 8px;
+           border: 1px solid var(--line); background: #fff; cursor: pointer; }
+  button.primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  textarea { width: 100%; font: 16px/1.5 system-ui; padding: 10px; border: 1px solid var(--line);
+             border-radius: 8px; resize: vertical; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .muted { color: var(--muted); font-size: 15px; }
+  .mono { font-family: ui-monospace, Consolas, monospace; }
+
+  /* ---------- header ---------- */
+  header { display: flex; align-items: center; gap: 14px; padding: 14px 0; flex-wrap: wrap; }
+  .wordmark { font-size: 24px; font-weight: 800; letter-spacing: .5px; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; border-radius: 999px;
+          padding: 5px 14px; font-size: 15px; font-weight: 700; }
+  .pill.sandbox { background: #1d4ed8; color: #fff; }
+  /* The load-bearing badge: three states, no two alike at a glance. */
+  .pill.live { background: #0a7d33; color: #fff; }
+  .pill.live::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: #b6f7c9;
+                       animation: pulse 1.4s infinite; }
+  .pill.cache { background: #fff; color: #1d4ed8; border: 2px dashed #1d4ed8; }
+  .pill.stub { background: repeating-linear-gradient(45deg, #7c2d12, #7c2d12 12px, #f59e0b 12px, #f59e0b 24px);
+               color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.7); font-size: 16px; }
+  .pill.none { background: #e5e7eb; color: var(--muted); }
+  @keyframes pulse { 50% { opacity: .3; } }
+  .counters { margin-left: auto; text-align: right; font-size: 15px; color: var(--muted); }
+
+  /* ---------- THE DENY PANEL — the product. Whole block under 650px. ---------- */
+  .deny-panel { border: 3px solid var(--deny); border-radius: 12px; background: #fff5f5;
+                padding: 22px 26px; }
+  .deny-head { display: flex; align-items: baseline; gap: 22px; flex-wrap: wrap; }
+  .deny-verdict { font-size: 64px; font-weight: 900; color: var(--deny); letter-spacing: 1px; line-height: 1.05; }
+  .deny-clauseid { font-size: 64px; font-weight: 900; color: var(--ink); line-height: 1.05; }
+  .deny-proposal { font-size: 19px; color: var(--muted); margin-top: 2px; }
+  .deny-clausetext { font-size: 24px; font-weight: 600; margin: 12px 0 4px; }
+  .deny-evidence { font-size: 17px; color: var(--ink); margin: 6px 0 14px; }
+  .not-happened { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .not-happened .cell { background: #fff; border: 2px solid var(--deny); border-radius: 10px;
+                        padding: 12px 14px; text-align: center; }
+  .not-happened .big { font-size: 34px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .not-happened .lbl { font-size: 15px; color: var(--muted); margin-top: 2px; }
+  .not-happened .ok { color: var(--allow); font-weight: 700; font-size: 16px; }
+
+  /* ---------- other verdict panels (plainer, deliberately) ---------- */
+  .verdict-panel { border: 2px solid var(--line); border-radius: 12px; padding: 18px 22px; background: #fff; }
+  .verdict-panel.allow { border-color: var(--allow); }
+  .verdict-panel.escalate { border-color: var(--escalate); background: #fffaf3; }
+  .verdict-big { font-size: 40px; font-weight: 800; }
+  .verdict-big.allow { color: var(--allow); } .verdict-big.escalate { color: var(--escalate); }
+
+  .chip { padding: 3px 10px; border-radius: 6px; font-weight: 700; font-size: 15px; color: #fff; }
+  .chip.ALLOW { background: var(--allow); } .chip.ESCALATE { background: var(--escalate); }
+  .chip.DENY { background: var(--deny); }
+
+  /* clauses: compact two-column rows — id beside text */
+  .clause { display: grid; grid-template-columns: 56px 1fr; gap: 10px; padding: 7px 4px;
+            border-bottom: 1px solid var(--line); font-size: 17px; align-items: baseline; }
+  .clause:last-child { border-bottom: 0; }
+  .clause .cid { font-weight: 800; }
+
+  details { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; margin-top: 8px; }
+  details summary { cursor: pointer; font-size: 16px; }
+  fieldset { border: 1px solid var(--line); border-radius: 8px; margin-top: 8px; padding: 10px 14px; }
+  fieldset legend { font-weight: 700; font-size: 16px; padding: 0 6px; }
+  label.opt { display: block; font-size: 16px; margin: 6px 0; }
+  .sets { color: var(--muted); font-size: 15px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 16px; }
+  th { text-align: left; font-size: 15px; color: var(--muted); border-bottom: 2px solid var(--line);
+       padding: 6px 8px; }
+  td { padding: 8px; border-bottom: 1px solid var(--line); }
+  tr.selectable { cursor: pointer; } tr.selectable:hover { background: #eef1f6; }
+  tr.selected { background: #e8edf7; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  .stream { background: #101318; color: #d7dde8; border-radius: 8px; padding: 14px;
+            font: 15px/1.5 ui-monospace, Consolas, monospace; max-height: 300px; overflow-y: auto;
+            white-space: pre-wrap; word-break: break-word; }
+  .stream .think { color: #7b8496; }
+  .streaming-note { display: none; align-items: center; gap: 8px; color: var(--muted); font-size: 15px; }
+  .streaming-note.on { display: inline-flex; }
+  .streaming-note::before { content: ""; width: 10px; height: 10px; border-radius: 50%;
+                            background: var(--allow); animation: pulse 1s infinite; }
+  .hash { font-size: 15px; color: var(--muted); }
+  .banner-error { background: #fef2f2; border: 2px solid var(--deny); color: var(--deny);
+                  border-radius: 8px; padding: 10px 14px; font-weight: 600; margin-top: 10px; display: none; }
+  .payment { border: 1px dashed var(--line); border-radius: 8px; padding: 10px 14px; margin-top: 12px;
+             font-size: 16px; }
+  .validity { font-size: 16px; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <span class="wordmark">Warrant</span>
+    <span class="pill sandbox">SANDBOX</span>
+    <span id="compile-badge" class="pill none">NOT COMPILED</span>
+    <span id="warrant-chip" class="muted">no warrant</span>
+    <span class="counters">
+      Sandbox payment sessions: <strong id="c-sessions">0</strong> ·
+      Credential requests: <strong id="c-creds">0</strong><br>
+      <span id="ledger-line" class="muted">—</span>
+    </span>
+  </header>
+
+  <section id="policy-section">
+    <h2>1 · Spending policy — plain English</h2>
+    <textarea id="policy" rows="3">Buy only from approved suppliers. Don't exceed ₹15,000 per week. Any order above ₹5,000 requires my approval. Never buy from a new supplier without approval.</textarea>
+    <div class="row" style="margin-top:10px">
+      <button id="btn-compile" class="primary">Compile</button>
+      <button id="btn-cache" class="hidden">Use cached compile</button>
+      <span id="compile-note" class="streaming-note">Claude is writing clauses — live</span>
+    </div>
+    <div id="compile-error" class="banner-error"></div>
+    <div id="stream" class="stream hidden" style="margin-top:12px"></div>
+  </section>
+
+  <section id="draft-section" class="hidden">
+    <h2>2 · Compiled clauses — a draft until you confirm</h2>
+    <div id="clauses"></div>
+    <div id="flags" style="margin-top:14px"></div>
+    <div class="row" style="margin-top:12px">
+      <button id="btn-confirm" class="primary">Confirm — make it enforceable</button>
+      <span id="confirm-note" class="muted">Confirmation is blocked while any question above is unanswered.</span>
+    </div>
+  </section>
+
+  <section id="warrant-section" class="hidden">
+    <h2>3 · Active warrant</h2>
+    <div class="validity" id="validity"></div>
+    <div class="row" style="margin-top:10px">
+      <button id="btn-seed">Seed prior history (₹4,000 — recorded approvals, no hidden setup)</button>
+    </div>
+  </section>
+
+  <section id="proposals-section" class="hidden">
+    <h2>4 · Agent proposals</h2>
+    <div class="row" id="canned"></div>
+    <div class="row" style="margin-top:10px">
+      <input id="p-supplier" placeholder="Supplier" style="font:16px system-ui; padding:8px; border:1px solid var(--line); border-radius:8px">
+      <input id="p-amount" placeholder="Amount (₹)" type="number" style="font:16px system-ui; padding:8px; width:140px; border:1px solid var(--line); border-radius:8px">
+      <button id="btn-propose">Propose</button>
+    </div>
+  </section>
+
+  <section id="detail-section" class="hidden">
+    <h2>5 · Decision</h2>
+    <div id="detail"></div>
+  </section>
+
+  <section id="feed-section" class="hidden">
+    <h2>6 · Activity</h2>
+    <table>
+      <thead><tr><th>Time</th><th>Supplier</th><th class="num">Amount</th><th>Decision</th><th>Clause</th><th>Approval</th></tr></thead>
+      <tbody id="feed"></tbody>
+    </table>
+  </section>
+
+  <section id="records-section" class="hidden">
+    <h2>7 · Authorization record — append-only, hash-chained (tamper-evident)</h2>
+    <div id="chain-status" class="muted"></div>
+    <table>
+      <thead><tr><th>Record</th><th>Kind</th><th>Summary</th><th>Hash</th></tr></thead>
+      <tbody id="records"></tbody>
+    </table>
+  </section>
+</main>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const rupees = (n) => "₹" + Number(n).toLocaleString("en-IN");
+
+let state = null;
+let lastStateJson = "";
+let selectedDecision = null;
+let streamingNow = false;   // provenance guard: green badge only for a compile streamed in this session
+let sawLiveStream = false;
+
+const CANNED = [
+  { label: "A", supplier: "PackRight Supplies", amount: 3800 },
+  { label: "B", supplier: "PackRight Supplies", amount: 6200 },
+  { label: "C", supplier: "Unknown Vendor", amount: 4900 },
+  { label: "D", supplier: "PackRight Supplies", amount: 12000 },
+  { label: "E", supplier: "PackRight Supplies", amount: 9000 },
+];
+
+/* Camera-safe wording — no raw states on screen. */
+const PAYMENT_WORDS = {
+  requested: "Session requested — contacting the payment provider",
+  awaiting_verification: "Awaiting verification — the provider's session clock applies (~15 min, theirs)",
+  confirmed: "Confirmed by the provider",
+  declined: "Declined by the provider",
+  unavailable: "Provider unavailable — the decision and its record are unaffected",
+};
+
+async function api(path, body) {
+  const res = await fetch(path, {
+    method: body === undefined ? "GET" : "POST",
+    headers: { "content-type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+}
+
+async function refresh(force) {
+  try {
+    const next = await api("/api/state");
+    const json = JSON.stringify(next);
+    // Skip identical re-renders: a poll must never wipe radios the operator
+    // is in the middle of choosing.
+    if (!force && json === lastStateJson) return;
+    lastStateJson = json;
+    state = next;
+    render();
+  } catch (e) { /* poll again */ }
+}
+
+function badge() {
+  const el = $("compile-badge");
+  const p = state.compile.provenance;
+  el.className = "pill";
+  if (p === "live" && sawLiveStream) {
+    el.classList.add("live");
+    el.textContent = "LIVE COMPILE — " + (state.compile.model || "model");
+  } else if (p === "live" || p === "cache") {
+    el.classList.add("cache");
+    el.textContent = "CACHED REPLAY — compiled " + (state.compile.compiledAt ? new Date(state.compile.compiledAt).toLocaleString() : "earlier");
+  } else if (p === "stub") {
+    el.classList.add("stub");
+    el.textContent = "BUILT-IN FALLBACK — NOT A LIVE COMPILE";
+  } else {
+    el.classList.add("none");
+    el.textContent = "NOT COMPILED";
+  }
+}
+
+function renderClauses() {
+  $("clauses").innerHTML = state.draft.clauses
+    .map((c) => `<div class="clause"><span class="cid">${esc(c.id)}</span><span>${esc(c.text)}</span></div>`)
+    .join("");
+}
+
+function isPrimaryFlag(flag) {
+  return flag.options.some((o) => "C1.onUnapprovedSupplier" in o.sets);
+}
+
+function renderFlags() {
+  const confirmed = !!state.warrant;
+  const chosenLabel = (flag) => {
+    const key = state.answers && state.answers[flag.id];
+    const opt = key && flag.options.find((o) => o.key.toLowerCase() === key.toLowerCase());
+    return opt ? opt.label : null;
+  };
+  $("flags").innerHTML = state.draft.flags.map((flag) => {
+    const options = flag.options.map((o) =>
+      `<label class="opt"><input type="radio" name="flag-${esc(flag.id)}" value="${esc(o.key)}" ${confirmed ? "disabled" : ""}>
+        <strong>${esc(o.key)}</strong> — ${esc(o.label)} <span class="sets mono">${esc(JSON.stringify(o.sets))}</span></label>`).join("");
+    const head = `${esc(flag.clauses.join("/"))} · flagged by ${esc(flag.detectedBy)}`;
+    if (isPrimaryFlag(flag)) {
+      return `<fieldset><legend>${head} — ${esc(flag.question)}</legend>${options}</fieldset>`;
+    }
+    const answered = chosenLabel(flag);
+    return `<details ${confirmed ? "" : "open"}><summary>${head} — ${esc(flag.question)}${answered ? ` · <strong>answered: ${esc(answered)}</strong>` : ""}</summary>${options}</details>`;
+  }).join("");
+  $("btn-confirm").disabled = confirmed;
+  $("confirm-note").textContent = confirmed
+    ? "Confirmed — the draft is now an enforceable warrant."
+    : "Confirmation is blocked while any question above is unanswered.";
+}
+
+function notHappenedCell(big, label, note) {
+  return `<div class="cell"><div class="big">${big}</div><div class="lbl">${esc(label)}</div><div class="ok">${esc(note)}</div></div>`;
+}
+
+function renderDeny(d) {
+  const sessionsNow = state.counters.paymentSessions;
+  const reasonLine = d.reason === "OUTSIDE_VALIDITY"
+    ? "The mandate is outside its validity window — nothing is evaluated further."
+    : d.reason === "INVALID_PROPOSAL" ? "The proposal was malformed — refused before any clause was evaluated." : "";
+  const evidence = d.clause
+    ? `${rupees(d.amount)} against ${rupees(d.cumulativeBefore)} already authorized · cap ${rupees(state.warrant.cumulativeCap)} · per-order threshold ${rupees(state.warrant.approvalThreshold)}`
+    : reasonLine;
+  return `<div class="deny-panel">
+    <div class="deny-head">
+      <span class="deny-verdict">REFUSED</span>
+      ${d.clause ? `<span class="deny-clauseid">${esc(d.clause)}</span>` : ""}
+      <span class="deny-proposal">${esc(d.supplier)} · ${rupees(d.amount)}</span>
+    </div>
+    ${d.clauseText ? `<div class="deny-clausetext">“${esc(d.clauseText)}”</div>` : ""}
+    <div class="deny-evidence">${esc(evidence)}</div>
+    <div class="not-happened">
+      ${notHappenedCell(`${d.sessionsAtDecision} → ${sessionsNow}`, "payment sessions, before → now", d.sessionsAtDecision === sessionsNow ? "unchanged" : "changed by other decisions")}
+      ${notHappenedCell(String(state.counters.credentialRequests), "credential requests", "none requested")}
+      ${notHappenedCell(String(d.outboundCalls), "outbound calls for this decision", "nothing left this machine")}
+    </div>
+  </div>`;
+}
+
+function renderPayment(d) {
+  if (d.decision === "DENY") return "";
+  if (d.approval && d.approval.outcome === "rejected") {
+    return `<div class="payment">No payment session — the escalation was rejected. Nothing to cancel, nothing to reverse.</div>`;
+  }
+  if (d.approval && d.approval.outcome === "pending") return "";
+  if (!d.payment) {
+    return `<div class="payment">Payment leg not attached in this build phase — the authorization is recorded; execution attaches here later.</div>`;
+  }
+  const words = PAYMENT_WORDS[d.payment.status] || "";
+  const ref = d.payment.sessionRef ? ` · session ref <span class="mono">${esc(d.payment.sessionRef)}</span>` : "";
+  return `<div class="payment">${esc(words)}${ref}</div>`;
+}
+
+function renderDetail() {
+  const d = state.decisions.find((x) => x.id === selectedDecision) || state.decisions[state.decisions.length - 1];
+  if (!d) { $("detail-section").classList.add("hidden"); return; }
+  selectedDecision = d.id;
+  $("detail-section").classList.remove("hidden");
+
+  if (d.decision === "DENY") {
+    $("detail").innerHTML = renderDeny(d);
+    return;
+  }
+  let approvalHtml = "";
+  if (d.approval) {
+    if (d.approval.outcome === "pending") {
+      approvalHtml = `<p style="font-size:18px"><strong>Awaiting human approval.</strong> Nothing executes until you decide.</p>
+        <div class="row">
+          <button class="primary" onclick="decide('${esc(d.id)}','approved')">Approve</button>
+          <button onclick="decide('${esc(d.id)}','rejected')">Reject</button>
+        </div>`;
+    } else {
+      approvalHtml = `<p style="font-size:17px">${d.approval.outcome === "approved" ? "Approved" : "Rejected"} by
+        <strong>${esc(d.approval.approvedBy)}</strong> at ${new Date(d.approval.atIso).toLocaleTimeString()}.</p>`;
+    }
+  }
+  const cls = d.decision === "ALLOW" ? "allow" : "escalate";
+  $("detail").innerHTML = `<div class="verdict-panel ${cls}">
+    <div class="row">
+      <span class="verdict-big ${cls}">${d.decision === "ALLOW" ? "ALLOWED" : "ESCALATED"}</span>
+      ${d.clause ? `<span class="verdict-big">${esc(d.clause)}</span>` : ""}
+      <span class="muted" style="font-size:18px">${esc(d.supplier)} · ${rupees(d.amount)}</span>
+    </div>
+    ${d.clauseText ? `<div style="font-size:19px; margin-top:6px">“${esc(d.clauseText)}”</div>` : `<div class="muted" style="margin-top:6px">No clause breached.</div>`}
+    <div class="muted" style="margin-top:6px">${rupees(d.cumulativeBefore)} authorized before this proposal.</div>
+    ${approvalHtml}
+    ${renderPayment(d)}
+  </div>`;
+}
+
+function renderFeed() {
+  const approvalWord = (d) =>
+    !d.approval ? "—" :
+    d.approval.outcome === "pending" ? "awaiting approval" :
+    `${d.approval.outcome} · ${d.approval.approvedBy}`;
+  $("feed").innerHTML = state.decisions.slice().reverse().map((d) =>
+    `<tr class="selectable ${d.id === selectedDecision ? "selected" : ""}" onclick="selectDecision('${esc(d.id)}')">
+      <td>${new Date(d.atIso).toLocaleTimeString()}</td>
+      <td>${esc(d.supplier)}</td>
+      <td class="num">${rupees(d.amount)}</td>
+      <td><span class="chip ${d.decision}">${d.decision}</span></td>
+      <td>${d.clause ? esc(d.clause) : (d.reason ? esc(d.reason.toLowerCase().replace("_", " ")) : "none")}</td>
+      <td>${esc(approvalWord(d))}</td>
+    </tr>`).join("");
+}
+
+function renderRecords() {
+  $("chain-status").textContent = state.chain.ok
+    ? `Chain verified — ${state.records.length} records, each hash covering the one before it.`
+    : `CHAIN VERIFICATION FAILED at record ${state.chain.atIndex}`;
+  $("records").innerHTML = state.records.map((r) =>
+    `<tr><td class="mono">${esc(r.id)}</td><td>${esc(r.kind)}</td><td>${esc(r.summary)}</td>
+     <td class="hash mono" title="${esc(r.recordHash)}">${esc(r.recordHash.slice(0, 16))}…</td></tr>`).join("");
+}
+
+function render() {
+  if (!state) return;
+  badge();
+  $("btn-cache").classList.toggle("hidden", !state.cacheAvailable || !!state.draft);
+  $("c-sessions").textContent = state.counters.paymentSessions;
+  $("c-creds").textContent = state.counters.credentialRequests;
+
+  if (state.warrant) {
+    $("warrant-chip").innerHTML = `<strong style="color:var(--allow)">WARRANT ACTIVE</strong>`;
+    $("validity").innerHTML = `Warrant <span class="mono">${esc(state.warrant.warrantId)}</span> v${state.warrant.version}
+      · valid <strong>${new Date(state.warrant.issuedAtIso).toLocaleString()}</strong>
+      until <strong>${new Date(state.warrant.expiresAtIso).toLocaleString()}</strong> (absolute — the limit window is aligned to it)`;
+    $("ledger-line").textContent =
+      `${rupees(state.ledger.authorized)} of ${rupees(state.ledger.cap)} authorized under this warrant`;
+  } else {
+    $("warrant-chip").textContent = state.draft ? "draft — not yet enforceable" : "no warrant";
+    $("ledger-line").textContent = "—";
+  }
+
+  const hasDraft = !!state.draft;
+  $("draft-section").classList.toggle("hidden", !hasDraft);
+  if (hasDraft) { renderClauses(); renderFlags(); }
+
+  const active = !!state.warrant;
+  $("warrant-section").classList.toggle("hidden", !active);
+  $("proposals-section").classList.toggle("hidden", !active);
+  $("feed-section").classList.toggle("hidden", !active || state.decisions.length === 0);
+  $("records-section").classList.toggle("hidden", !active || state.records.length === 0);
+  $("btn-seed").disabled = state.records.length > 0;
+  if (active) { renderFeed(); renderRecords(); renderDetail(); }
+}
+
+function setState(next) { state = next; lastStateJson = JSON.stringify(next); render(); }
+window.selectDecision = (id) => { selectedDecision = id; render(); };
+window.decide = async (id, outcome) => {
+  try { setState(await api("/api/approve", { decisionId: id, outcome })); }
+  catch (e) { alert(e.message); }
+};
+
+$("btn-compile").addEventListener("click", async () => {
+  const policy = $("policy").value;
+  $("btn-compile").disabled = true;
+  $("compile-error").style.display = "none";
+  const streamEl = $("stream");
+  streamEl.classList.remove("hidden");
+  streamEl.innerHTML = "";
+  $("compile-note").classList.add("on");
+  streamingNow = true;
+  try {
+    const res = await fetch("/api/compile", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ mode: "fresh", policy }),
+    });
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop();
+      for (const lineText of lines) {
+        if (!lineText.trim()) continue;
+        const msg = JSON.parse(lineText);
+        if (msg.kind === "thinking") {
+          streamEl.insertAdjacentHTML("beforeend", `<span class="think">${esc(msg.chunk)}</span>`);
+        } else if (msg.kind === "text") {
+          streamEl.insertAdjacentText("beforeend", msg.chunk);
+        } else if (msg.kind === "error") {
+          const box = $("compile-error");
+          box.textContent = `COMPILE REFUSED — fail closed (${msg.stage}): ${msg.message}`;
+          box.style.display = "block";
+        } else if (msg.kind === "result") {
+          sawLiveStream = msg.source === "model";
+        }
+        streamEl.scrollTop = streamEl.scrollHeight;
+      }
+    }
+  } catch (e) {
+    const box = $("compile-error");
+    box.textContent = "Compile request failed: " + e.message;
+    box.style.display = "block";
+  } finally {
+    streamingNow = false;
+    $("compile-note").classList.remove("on");
+    $("btn-compile").disabled = false;
+    refresh(true);
+  }
+});
+
+$("btn-cache").addEventListener("click", async () => {
+  try { sawLiveStream = false; setState(await api("/api/compile", { mode: "cache" })); }
+  catch (e) { alert(e.message); }
+});
+
+$("btn-confirm").addEventListener("click", async () => {
+  const answers = {};
+  for (const flag of state.draft.flags) {
+    const chosen = document.querySelector(`input[name="flag-${flag.id}"]:checked`);
+    if (chosen) answers[flag.id] = chosen.value;
+  }
+  try { setState(await api("/api/confirm", { answers })); }
+  catch (e) {
+    $("confirm-note").textContent = e.message;
+    $("confirm-note").style.color = "var(--deny)";
+  }
+});
+
+$("btn-seed").addEventListener("click", async () => {
+  try { setState(await api("/api/seed", {})); } catch (e) { alert(e.message); }
+});
+
+for (const c of CANNED) {
+  const btn = document.createElement("button");
+  btn.textContent = `${c.label} · ${c.supplier} · ${rupees(c.amount)}`;
+  btn.addEventListener("click", () => propose(c.supplier, c.amount));
+  $("canned").appendChild(btn);
+}
+
+async function propose(supplier, amount) {
+  try {
+    const data = await api("/api/propose", { supplier, amount });
+    selectedDecision = data.decisionId;
+    setState(data.state);
+  } catch (e) { alert(e.message); }
+}
+$("btn-propose").addEventListener("click", () =>
+  propose($("p-supplier").value.trim(), Number($("p-amount").value)));
+
+refresh();
+setInterval(() => { if (!streamingNow) refresh(); }, 1500);
+</script>
+</body>
+</html>
