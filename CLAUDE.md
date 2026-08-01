@@ -299,6 +299,11 @@ Verified live (1 Aug, probe + implementation in `src/provider/prava.ts`):
 - Sessions are single-use, ~15 min, fresh session per attempt; a poll cycle costs ~3.26s.
 - Saved card auto-discovered at server boot via `/v1/listCards` (default card), or pinned with
   `PRAVA_CARD_ID`. Seeded history's approvals never execute — no session is created for the seed.
+- **Lapsed or provider-closed sessions: no retry control — decided, PR-07 wins.** "No retry without
+  re-evaluation" over EV-11's narrower reading. A lapsed session means the authorization must be
+  made **again**, not resumed: the execution authority died with the session. On camera that means
+  a fresh take or `demo:nopay`. This is correct product behaviour, not a limitation — do not add a
+  "fresh session" convenience button at hour 30.
 
 ## Repository conventions
 
