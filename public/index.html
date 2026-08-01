@@ -114,6 +114,7 @@
 </head>
 <body>
 <main>
+  <div id="app-error" class="banner-error" style="margin-top:12px"></div>
   <header>
     <span class="wordmark">Warrant</span>
     <span class="pill sandbox">SANDBOX</span>
@@ -180,7 +181,7 @@
   <section id="feed-section" class="hidden">
     <h2>6 · Activity</h2>
     <table>
-      <thead><tr><th>Time</th><th>Supplier</th><th class="num">Amount</th><th>Decision</th><th>Clause</th><th>Approval</th></tr></thead>
+      <thead><tr><th>Time</th><th>Supplier</th><th class="num">Amount</th><th class="num">Prior authorized</th><th>Decision</th><th>Clause</th><th>Approval</th></tr></thead>
       <tbody id="feed"></tbody>
     </table>
   </section>
@@ -396,6 +397,7 @@ function renderFeed() {
       <td>${new Date(d.atIso).toLocaleTimeString()}</td>
       <td>${esc(d.supplier)}</td>
       <td class="num">${rupees(d.amount)}</td>
+      <td class="num">${rupees(d.cumulativeBefore)}</td>
       <td><span class="chip ${d.decision}">${d.decision}</span></td>
       <td>${d.clause ? esc(d.clause) : (d.reason ? esc(d.reason.toLowerCase().replace("_", " ")) : "none")}</td>
       <td>${esc(approvalWord(d))}</td>
@@ -539,10 +541,20 @@ function render() {
 }
 
 function setState(next) { state = next; lastStateJson = JSON.stringify(next); render(); }
+
+/* One short plain-language sentence — never an alert(), never a stack trace. */
+let errorTimer = null;
+function showError(message) {
+  const strip = $("app-error");
+  strip.textContent = message;
+  strip.style.display = "block";
+  if (errorTimer) clearTimeout(errorTimer);
+  errorTimer = setTimeout(() => { strip.style.display = "none"; }, 6000);
+}
 window.selectDecision = (id) => { selectedDecision = id; render(); };
 window.decide = async (id, outcome) => {
   try { setState(await api("/api/approve", { decisionId: id, outcome })); }
-  catch (e) { alert(e.message); }
+  catch (e) { showError(e.message); }
 };
 
 $("btn-compile").addEventListener("click", async () => {
@@ -599,7 +611,7 @@ $("btn-compile").addEventListener("click", async () => {
 
 $("btn-cache").addEventListener("click", async () => {
   try { sawLiveStream = false; setState(await api("/api/compile", { mode: "cache" })); }
-  catch (e) { alert(e.message); }
+  catch (e) { showError(e.message); }
 });
 
 $("btn-confirm").addEventListener("click", async () => {
@@ -616,7 +628,7 @@ $("btn-confirm").addEventListener("click", async () => {
 });
 
 $("btn-seed").addEventListener("click", async () => {
-  try { setState(await api("/api/seed", {})); } catch (e) { alert(e.message); }
+  try { setState(await api("/api/seed", {})); } catch (e) { showError(e.message); }
 });
 
 for (const c of CANNED) {
@@ -631,7 +643,7 @@ async function propose(supplier, amount) {
     const data = await api("/api/propose", { supplier, amount });
     selectedDecision = data.decisionId;
     setState(data.state);
-  } catch (e) { alert(e.message); }
+  } catch (e) { showError(e.message); }
 }
 $("btn-propose").addEventListener("click", () =>
   propose($("p-supplier").value.trim(), Number($("p-amount").value)));
