@@ -51,8 +51,16 @@ evaluator.
 
 Decided so far:
 
-- **Toolchain** — TypeScript strict, zero runtime dependencies; tests on `node:test` via type
-  stripping. `erasableSyntaxOnly` is load-bearing: source must stay strippable.
+- **Toolchain** — TypeScript strict; tests on `node:test` via type stripping. `erasableSyntaxOnly`
+  is load-bearing: source must stay strippable.
+- **Dependency policy** — the **engine is zero-dependency** (that is the determinism claim); the
+  compiler layer carries exactly one runtime dependency, `@anthropic-ai/sdk`. Nothing else without
+  recording it here.
+- **Compiler model call** — `claude-opus-5`, streaming, adaptive thinking with
+  `display: "summarized"` (the 24–30s compile streams visible reasoning, not a dead pause),
+  structured output via `output_config.format` (`additionalProperties: false` throughout), and
+  server-side refusal fallback (`fallbacks: "default"`). Effort stays `high` — measured 24–30s;
+  do not lower it to speed the demo (low risks missing the overlap flags, which are a demo beat).
 - **`src/engine/`** — pure, clock-free evaluation. `evaluate(warrant, ledger, proposal, at)` takes
   time as a parameter and reads structured fields only: its input type `EvaluableWarrant` omits
   `clauses`, so compiled English text cannot influence a verdict by construction.
