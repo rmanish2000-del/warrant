@@ -25,17 +25,30 @@ const PUBLIC_DIR = join(process.cwd(), 'public');
 
 /**
  * Payment leg attachment — the ONLY place the secret key is read, and it goes
- * nowhere but the provider's Authorization header. `--nopay` (npm run
+ * nowhere but the provider's Authorization header. `--skip-payment` (npm run
  * demo:nopay) is the on-camera fallback: same console, payment leg off, DENY
- * and the whole record path unaffected.
+ * and the whole record path unaffected. The flag is deliberately NOT named
+ * `--no-payment`: npm eats any `--no-*` argument as its own config negation,
+ * so it would never reach this script and would look like a broken flag.
+ *
+ * `--freeze-clock` makes the run deterministic: a fixed epoch advanced 1s per
+ * read, so identical click sequences produce byte-identical state and export
+ * between runs (used by demo:nopay). With real payments everything matches
+ * except session ids, which necessarily differ — honest, not fixable.
  */
-const noPay = process.argv.includes('--nopay');
+const noPay = process.argv.includes('--skip-payment');
+const freezeClock = process.argv.includes('--freeze-clock');
+const FROZEN_EPOCH = Date.UTC(2026, 7, 2, 9, 0, 0); // 2 Aug 2026 09:00Z — plausible on camera
+let frozenTick = 0;
+const clock = freezeClock ? () => FROZEN_EPOCH + ++frozenTick * 1000 : () => Date.now();
 const secretKey = process.env['PRAVA_SK'];
 let provider = null as import('../console/flow.ts').ProviderPort | null;
 let paymentLeg = 'not configured';
 if (noPay) {
-  paymentLeg = 'off (--nopay)';
-  process.stdout.write('payment leg: OFF (--nopay) — refusals, approvals, and the record run without it\n');
+  paymentLeg = 'off (payment skipped)';
+  process.stdout.write(
+    `payment leg: OFF (--skip-payment) — refusals, approvals, and the record run without it${freezeClock ? ' · clock frozen for byte-identical runs' : ''}\n`,
+  );
 } else if (secretKey) {
   let prava = new PravaSandboxProvider({ secretKey, cardId: process.env['PRAVA_CARD_ID'] ?? null });
   try {
@@ -58,7 +71,7 @@ if (noPay) {
   process.stdout.write('payment leg: not configured (PRAVA_SK missing) — refusals and records unaffected\n');
 }
 
-const flow = new ConsoleFlow({ provider, clock: () => Date.now() });
+const flow = new ConsoleFlow({ provider, clock });
 
 const json = (res: ServerResponse, status: number, body: unknown) => {
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
@@ -125,7 +138,8 @@ const routes: Record<string, (req: IncomingMessage, res: ServerResponse) => Prom
   // Pretty-printed so a browser tab is a readable view of the export.
   'GET /api/export': (_req, res) => {
     res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
-    res.end(JSON.stringify(exportView(flow, new Date().toISOString()), null, 2));
+    // The flow clock, so frozen-clock runs export byte-identically too.
+    res.end(JSON.stringify(exportView(flow, new Date(clock()).toISOString()), null, 2));
   },
 
   'POST /api/compile': handleCompile,
