@@ -291,8 +291,9 @@ function renderFlags() {
     return opt ? opt.label : null;
   };
   $("flags").innerHTML = state.draft.flags.map((flag) => {
+    const chosenKey = state.answers && state.answers[flag.id];
     const options = flag.options.map((o) =>
-      `<label class="opt"><input type="radio" name="flag-${esc(flag.id)}" value="${esc(o.key)}" ${confirmed ? "disabled" : ""}>
+      `<label class="opt"><input type="radio" name="flag-${esc(flag.id)}" value="${esc(o.key)}" ${confirmed ? "disabled" : ""} ${chosenKey && o.key.toLowerCase() === chosenKey.toLowerCase() ? "checked" : ""}>
         <strong>${esc(o.key)}</strong> — ${esc(o.label)} <span class="sets mono">${esc(JSON.stringify(o.sets))}</span></label>`).join("");
     const head = `${esc(flag.clauses.join("/"))} · flagged by ${esc(flag.detectedBy)}`;
     if (isPrimaryFlag(flag)) {
