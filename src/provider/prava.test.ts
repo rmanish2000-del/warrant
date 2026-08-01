@@ -19,7 +19,7 @@ const fakeFetch = (replies: { status: number; body: unknown }[]) => {
 };
 
 const provider = (fetchImpl: typeof fetch, cardId: string | null = 'card_test_ref') =>
-  new PravaSandboxProvider({ secretKey: 'unit-test-secret', cardId, fetchImpl });
+  new PravaSandboxProvider({ secretKey: 'unit-test-secret', userEmail: 'unit-test-user', cardId, fetchImpl });
 
 const CREATED = {
   session_id: 'ses_01TEST',
@@ -109,7 +109,7 @@ describe('pollResult — readiness is token EXISTENCE, never status === "complet
                 {
                   txn_ref_id: 'tli_01TEST',
                   status: 'credentials_generated',
-                  token: '4000000000000000',
+                  token: 'synthetic-token-value-not-a-pan',
                   dynamic_cvv: '000',
                   expiry_month: '12',
                   expiry_year: '2027',
@@ -124,7 +124,7 @@ describe('pollResult — readiness is token EXISTENCE, never status === "complet
     assert.deepEqual(outcome, { kind: 'ready', txnRefId: 'tli_01TEST' });
     // The credential values must not cross the port — not even as extra fields.
     const serialized = JSON.stringify(outcome);
-    assert.ok(!serialized.includes('4000000000000000'));
+    assert.ok(!serialized.includes('synthetic-token-value-not-a-pan'));
     assert.ok(!serialized.includes('dynamic_cvv'));
   });
 
