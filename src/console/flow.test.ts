@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { canonicalAnswersFor, CANONICAL_PROPOSALS, ConsoleFlow, seedHistory } from './flow.ts';
-import type { ProviderPort, ProviderSession } from './flow.ts';
+import type { CreatedSession, PollOutcome, ProviderPort } from './flow.ts';
 import { stubDraft } from '../compiler/draft.ts';
 import { cumulativeAuthorized } from '../engine/evaluate.ts';
 import { EnforcementError } from '../records/append.ts';
@@ -14,27 +14,42 @@ const makeClock = () => {
   return () => (t += 1_000);
 };
 
-/** Counts every call; resolves instantly with a sandbox-shaped session. */
+const FAR_EXPIRY = new Date(T0 + 10 * 60_000).toISOString();
+
+/** Counts every port call; the passkey is presumed done — first poll is ready. */
 const countingProvider = () => {
-  const calls: { supplier: string; amount: number }[] = [];
+  const calls: { method: 'create' | 'poll' | 'report'; supplier?: string }[] = [];
+  let seq = 0;
   const port: ProviderPort = {
     async createSession(args) {
-      calls.push({ supplier: args.supplier, amount: args.amount });
-      return { sessionRef: `sess-${calls.length}`, status: 'awaiting_verification' };
+      calls.push({ method: 'create', supplier: args.supplier });
+      seq += 1;
+      return { sessionRef: `sess-${seq}`, iframeUrl: 'https://sandbox.collect.example/opaque', expiresAtIso: FAR_EXPIRY };
+    },
+    async pollResult() {
+      calls.push({ method: 'poll' });
+      return { kind: 'ready', txnRefId: 'tli-test' };
+    },
+    async reportApproved() {
+      calls.push({ method: 'report' });
+      return { visaConfirmation: 'SUCCESS' };
     },
   };
-  return { port, calls };
+  const creates = () => calls.filter((c) => c.method === 'create').length;
+  return { port, calls, creates };
 };
 
 const readyFlow = (provider: ProviderPort | null = null) => {
-  const flow = new ConsoleFlow({ provider, clock: makeClock() });
+  const flow = new ConsoleFlow({ provider, clock: makeClock(), sleep: async () => {}, pollIntervalMs: 1 });
   flow.adoptDraft({ source: 'stub', draft: stubDraft(), reason: 'test' }, 'stub');
   flow.confirmWarrant(canonicalAnswersFor(stubDraft()));
   seedHistory(flow);
   return flow;
 };
 
-const settle = () => new Promise((resolve) => setImmediate(resolve));
+const settle = async () => {
+  for (let i = 0; i < 6; i += 1) await new Promise((resolve) => setImmediate(resolve));
+};
 
 describe('seeded history goes through the enforcement boundary', () => {
   it('seeds ₹4,000 via a C4 escalation approved by the named operator, then an ALLOW', () => {
@@ -48,9 +63,11 @@ describe('seeded history goes through the enforcement boundary', () => {
 
 describe('the five canonical scenarios, end to end against the live ledger', () => {
   it('runs A–E in order with the expected verdicts, clauses, and running totals', async () => {
-    const { port, calls } = countingProvider();
+    const { port, calls, creates } = countingProvider();
     const flow = readyFlow(port);
-    await settle(); // let the seed approval's background session creation land
+    await settle();
+    // Seeded approvals record authority but never execute — no session for them.
+    assert.equal(creates(), 0);
     const sessionsBeforeScenarios = flow.paymentSessionsCreated;
 
     // A — ALLOW, nothing breached
@@ -80,10 +97,17 @@ describe('the five canonical scenarios, end to end against the live ledger', () 
     assert.deepEqual(e.verdict, { decision: 'DENY', clause: 'C2', reason: null });
 
     assert.equal(cumulativeAuthorized(flow.log.ledger()), 14_000);
-    // Provider was touched exactly twice across the whole demo: seed approval + scenario B.
-    assert.equal(calls.length, 2);
-    assert.deepEqual(flow.log.verify(), { ok: true });
+    // Exactly one session across the whole demo — scenario B's — with its poll and report.
+    assert.equal(creates(), 1);
+    assert.deepEqual(calls.map((c) => c.method), ['create', 'poll', 'report']);
     assert.equal(flow.paymentSessionsCreated, sessionsBeforeScenarios + 1);
+    // The payment leg completed in the background: confirmation surfaced, result chained.
+    const payment = flow.paymentFor(b.id);
+    assert.equal(payment?.status, 'confirmed');
+    assert.equal(payment?.visaConfirmation, 'SUCCESS');
+    const sessionResult = flow.log.records.findLast((r) => r.kind === 'session_result');
+    assert.ok(sessionResult?.kind === 'session_result' && sessionResult.outcome === 'SUCCESS' && sessionResult.decisionId === b.id);
+    assert.deepEqual(flow.log.verify(), { ok: true });
   });
 
   it('CANONICAL_PROPOSALS matches the spec table', () => {
@@ -148,8 +172,12 @@ describe('rejection path — a human says no', () => {
 
 describe('the refusal never waits on the payment leg — structurally', () => {
   it('with a provider that never resolves, the next decision still renders', async () => {
-    const never: ProviderPort = { createSession: () => new Promise<ProviderSession>(() => {}) };
-    const flow = new ConsoleFlow({ provider: never, clock: makeClock() });
+    const never: ProviderPort = {
+      createSession: () => new Promise(() => {}),
+      pollResult: () => new Promise(() => {}),
+      reportApproved: () => new Promise(() => {}),
+    };
+    const flow = new ConsoleFlow({ provider: never, clock: makeClock(), sleep: async () => {}, pollIntervalMs: 1 });
     flow.adoptDraft({ source: 'stub', draft: stubDraft(), reason: 'test' }, 'stub');
     flow.confirmWarrant(canonicalAnswersFor(stubDraft()));
     // Seed by hand here: the never-resolving provider leaves the seed approval pending forever,
@@ -165,18 +193,29 @@ describe('the refusal never waits on the payment leg — structurally', () => {
 });
 
 describe('screen safety — provider extras are structurally unreachable', () => {
-  it('extra fields on a provider response never survive into payment state', async () => {
+  it('extra fields on provider responses never survive into payment state', async () => {
     const leaky: ProviderPort = {
       async createSession() {
         return {
           sessionRef: 'sess-1',
-          status: 'awaiting_verification',
+          iframeUrl: 'https://sandbox.collect.example/opaque',
+          expiresAtIso: FAR_EXPIRY,
           session_token: 'tok-should-never-appear',
-          iframe_url: 'https://should.never.appear',
-        } as unknown as ProviderSession;
+        } as unknown as CreatedSession;
+      },
+      async pollResult() {
+        return {
+          kind: 'ready',
+          txnRefId: 'tli-1',
+          token: 'credential-should-never-appear',
+          dynamic_cvv: '999',
+        } as unknown as PollOutcome;
+      },
+      async reportApproved() {
+        return { visaConfirmation: 'SUCCESS', session_token: 'again-no' } as never;
       },
     };
-    const flow = new ConsoleFlow({ provider: leaky, clock: makeClock() });
+    const flow = new ConsoleFlow({ provider: leaky, clock: makeClock(), sleep: async () => {}, pollIntervalMs: 1 });
     flow.adoptDraft({ source: 'stub', draft: stubDraft(), reason: 'test' }, 'stub');
     flow.confirmWarrant(canonicalAnswersFor(stubDraft()));
     const s1 = flow.propose('PackRight Supplies', 2_500);
@@ -184,8 +223,43 @@ describe('screen safety — provider extras are structurally unreachable', () =>
     await settle();
 
     const payment = flow.paymentFor(s1.id);
-    assert.deepEqual(payment, { status: 'awaiting_verification', sessionRef: 'sess-1' });
-    assert.ok(!JSON.stringify(payment).includes('tok-should-never-appear'));
-    assert.ok(!JSON.stringify(payment).includes('iframe_url'));
+    assert.deepEqual(payment, {
+      status: 'confirmed',
+      sessionRef: 'sess-1',
+      iframeUrl: null,
+      expiresAtIso: FAR_EXPIRY,
+      visaConfirmation: 'SUCCESS',
+    });
+    const everything = JSON.stringify({ payment, records: flow.log.records });
+    assert.ok(!everything.includes('tok-should-never-appear'));
+    assert.ok(!everything.includes('credential-should-never-appear'));
+    assert.ok(!everything.includes('dynamic_cvv'));
+  });
+});
+
+describe('session lapse — the provider clock ends the watch, wordlessly safe', () => {
+  it('a session nobody approves lapses at the provider expiry; nothing is chained', async () => {
+    const alwaysPending: ProviderPort = {
+      async createSession() {
+        // Expires 5 ticking-clock seconds out, so the watcher terminates quickly.
+        return { sessionRef: 'sess-lapse', iframeUrl: 'https://x.example', expiresAtIso: new Date(T0 + 60_000).toISOString() };
+      },
+      async pollResult() {
+        return { kind: 'pending' };
+      },
+      async reportApproved() {
+        throw new Error('must not be called');
+      },
+    };
+    const flow = new ConsoleFlow({ provider: alwaysPending, clock: makeClock(), sleep: async () => {}, pollIntervalMs: 1 });
+    flow.adoptDraft({ source: 'stub', draft: stubDraft(), reason: 'test' }, 'stub');
+    flow.confirmWarrant(canonicalAnswersFor(stubDraft()));
+    const s1 = flow.propose('PackRight Supplies', 2_500);
+    flow.approve(s1.id, 'approved');
+    // Let the watcher run until the ticking clock passes the provider expiry.
+    for (let i = 0; i < 80; i += 1) await settle();
+
+    assert.equal(flow.paymentFor(s1.id)?.status, 'lapsed');
+    assert.equal(flow.log.records.some((r) => r.kind === 'session_result'), false);
   });
 });

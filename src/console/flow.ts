@@ -41,28 +41,59 @@ export const CANONICAL_PROPOSALS = [
 
 /**
  * What the provider port may return — and therefore ALL the console can ever
- * know about a session. Narrowing happens by explicit field copy in
- * #createSession, so extra fields never survive into state.
+ * know about a session. Narrowing happens by explicit field copy, so extra
+ * fields (tokens, CVVs) never survive into state. Credential VALUES never
+ * cross this port at all: `pollResult` reports readiness and a txn ref, not
+ * the credential.
  */
-export interface ProviderSession {
+export interface CreatedSession {
   readonly sessionRef: string;
-  readonly status: 'awaiting_verification' | 'confirmed' | 'declined';
+  /** The provider's interactive approval page. Rendered ONLY as an iframe src, never as text. */
+  readonly iframeUrl: string;
+  /** The provider's own expiry — displayed as theirs, never recomputed locally. */
+  readonly expiresAtIso: string;
 }
 
+export type PollOutcome =
+  | { readonly kind: 'pending' }
+  | { readonly kind: 'ready'; readonly txnRefId: string }
+  | { readonly kind: 'failed'; readonly message: string };
+
 export interface ProviderPort {
-  createSession(args: { supplier: string; amount: number; currency: string }): Promise<ProviderSession>;
+  createSession(args: {
+    supplier: string;
+    amount: number;
+    currency: string;
+    description: string;
+  }): Promise<CreatedSession>;
+  pollResult(sessionRef: string): Promise<PollOutcome>;
+  reportApproved(sessionRef: string, txnRefId: string): Promise<{ visaConfirmation: string }>;
 }
 
 /** Payment leg as the console sees it. Vocabulary is camera-safe: nothing here reads as a bug. */
 export interface PaymentView {
-  readonly status: 'requested' | 'awaiting_verification' | 'confirmed' | 'declined' | 'unavailable';
+  readonly status:
+    | 'requested'
+    | 'awaiting_verification'
+    | 'confirmed'
+    | 'declined'
+    | 'unavailable'
+    | 'lapsed';
   readonly sessionRef: string | null;
+  /** Deliberate exception to the no-URL rule: needed as iframe src for the human's passkey step. */
+  readonly iframeUrl: string | null;
+  readonly expiresAtIso: string | null;
+  readonly visaConfirmation: string | null;
 }
 
 export interface FlowDeps {
-  /** null = no payment leg attached in this build phase; the console says so honestly. */
+  /** null = no payment leg attached (missing key or --nopay); the console says so honestly. */
   readonly provider: ProviderPort | null;
   readonly clock: () => number;
+  /** Injected so tests are instant; defaults to real timers. */
+  readonly sleep?: (ms: number) => Promise<void>;
+  /** A poll cycle really costs ~3.26s against the sandbox; default keeps a small gap. */
+  readonly pollIntervalMs?: number;
 }
 
 const CANONICAL_TARGET: ClausePathValues = {
@@ -107,7 +138,8 @@ export class ConsoleFlow {
   /** Counters shown on screen — data, not narration. */
   #outboundCalls = 0;
   #paymentSessionsCreated = 0;
-  readonly #credentialRequests = 0; // no code path increments this in this phase, and the DENY view shows it
+  /** Bumped once per payment-result retrieval. Stays 0 for every non-executed decision. */
+  #credentialRequests = 0;
   #outboundPerDecision = new Map<string, number>();
   #paymentsByDecision = new Map<string, PaymentView>();
   #sessionsAtDecision = new Map<string, number>();
@@ -155,23 +187,45 @@ export class ConsoleFlow {
   /**
    * Record the human's decision on an escalation. The log's enforcement
    * checks run first — a DENY dies there before anything else can happen.
-   * On approval, session creation starts in the background; nothing awaits it.
+   * On approval, the payment leg starts in the background; nothing awaits it.
+   *
+   * `startPayment: false` exists for seeded history only: those approvals are
+   * real records of past authority, but their execution predates this demo,
+   * so no new sandbox session is created for them.
    */
-  approve(decisionId: string, outcome: 'approved' | 'rejected'): void {
+  approve(
+    decisionId: string,
+    outcome: 'approved' | 'rejected',
+    options: { startPayment?: boolean } = {},
+  ): void {
     const approval = this.log.appendApproval({
       decisionId,
       outcome,
       approvedBy: OPERATOR_ID,
       at: this.#deps.clock(),
     });
-    if (approval.outcome === 'approved' && this.#deps.provider) {
-      void this.#createSession(decisionId);
+    if (approval.outcome === 'approved' && this.#deps.provider && options.startPayment !== false) {
+      void this.#runPaymentLeg(decisionId);
     }
   }
 
-  /** The ONLY call site of the provider port. Guarded even though approve() already gates. */
-  async #createSession(decisionId: string): Promise<void> {
-    if (!this.#deps.provider) return;
+  #bumpOutbound(decisionId: string): void {
+    this.#outboundCalls += 1;
+    this.#outboundPerDecision.set(decisionId, (this.#outboundPerDecision.get(decisionId) ?? 0) + 1);
+  }
+
+  #setPayment(decisionId: string, view: PaymentView): void {
+    this.#paymentsByDecision.set(decisionId, view);
+  }
+
+  /**
+   * The ONLY call sites of the provider port, all behind isExecutable plus a
+   * recorded human approval. Fire-and-forget: the refusal path (and every
+   * other decision) renders regardless of what happens in here.
+   */
+  async #runPaymentLeg(decisionId: string): Promise<void> {
+    const provider = this.#deps.provider;
+    if (!provider) return;
     if (!this.log.isExecutable(decisionId)) {
       throw new EnforcementError(
         'not-executable',
@@ -181,24 +235,100 @@ export class ConsoleFlow {
     const decision = this.log.records.find(
       (r): r is DecisionRecord => r.kind === 'decision' && r.id === decisionId,
     )!;
-    this.#outboundCalls += 1;
-    this.#outboundPerDecision.set(decisionId, (this.#outboundPerDecision.get(decisionId) ?? 0) + 1);
-    this.#paymentsByDecision.set(decisionId, { status: 'requested', sessionRef: null });
+    const none = { sessionRef: null, iframeUrl: null, expiresAtIso: null, visaConfirmation: null };
+    this.#bumpOutbound(decisionId);
+    this.#setPayment(decisionId, { status: 'requested', ...none });
+    let session: CreatedSession;
     try {
-      const session = await this.#deps.provider.createSession({
+      const created = await provider.createSession({
         supplier: decision.proposal.supplier,
         amount: decision.proposal.amount,
         currency: decision.proposal.currency,
+        description: `authorized purchase — ${decision.proposal.supplier}`,
       });
       this.#paymentSessionsCreated += 1;
       // Explicit field copy — the allowlist. Extra provider fields stop here.
-      this.#paymentsByDecision.set(decisionId, {
-        status: session.status,
-        sessionRef: session.sessionRef,
-      });
+      session = {
+        sessionRef: created.sessionRef,
+        iframeUrl: created.iframeUrl,
+        expiresAtIso: created.expiresAtIso,
+      };
     } catch {
-      this.#paymentsByDecision.set(decisionId, { status: 'unavailable', sessionRef: null });
+      this.#setPayment(decisionId, { status: 'unavailable', ...none });
+      return;
     }
+    this.#setPayment(decisionId, {
+      status: 'awaiting_verification',
+      sessionRef: session.sessionRef,
+      iframeUrl: session.iframeUrl,
+      expiresAtIso: session.expiresAtIso,
+      visaConfirmation: null,
+    });
+    try {
+      await this.#watchSession(decisionId, session);
+    } catch {
+      this.#setPayment(decisionId, {
+        status: 'unavailable',
+        sessionRef: session.sessionRef,
+        iframeUrl: null,
+        expiresAtIso: session.expiresAtIso,
+        visaConfirmation: null,
+      });
+    }
+  }
+
+  /**
+   * Background watcher. THE TRAP, honored: never wait for status "completed"
+   * — the port's pollResult answers "does the credential exist yet", which the
+   * provider implementation checks via line_items token presence. Terminates
+   * on the provider's own expires_at; a session that lapses is worded as
+   * lapsed, never as an error.
+   */
+  async #watchSession(decisionId: string, session: CreatedSession): Promise<void> {
+    const provider = this.#deps.provider!;
+    const sleep = this.#deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+    const interval = this.#deps.pollIntervalMs ?? 4_000;
+    const expiresAtMs = Date.parse(session.expiresAtIso);
+    while (this.#deps.clock() < expiresAtMs) {
+      await sleep(interval);
+      this.#credentialRequests += 1;
+      this.#bumpOutbound(decisionId);
+      const outcome = await provider.pollResult(session.sessionRef);
+      if (outcome.kind === 'pending') continue;
+      if (outcome.kind === 'failed') {
+        this.#setPayment(decisionId, {
+          status: 'declined',
+          sessionRef: session.sessionRef,
+          iframeUrl: null,
+          expiresAtIso: session.expiresAtIso,
+          visaConfirmation: null,
+        });
+        return;
+      }
+      this.#bumpOutbound(decisionId);
+      const report = await provider.reportApproved(session.sessionRef, outcome.txnRefId);
+      this.log.appendSessionResult({
+        decisionId,
+        sessionRef: session.sessionRef,
+        outcome: report.visaConfirmation,
+        at: this.#deps.clock(),
+      });
+      this.#setPayment(decisionId, {
+        status: 'confirmed',
+        sessionRef: session.sessionRef,
+        iframeUrl: null,
+        expiresAtIso: session.expiresAtIso,
+        visaConfirmation: report.visaConfirmation,
+      });
+      return;
+    }
+    this.#setPayment(decisionId, {
+      status: 'lapsed',
+      sessionRef: session.sessionRef,
+      iframeUrl: null,
+      expiresAtIso: session.expiresAtIso,
+      visaConfirmation: null,
+    });
   }
 
   #requireWarrant(): Warrant {
@@ -254,7 +384,8 @@ export function seedHistory(flow: ConsoleFlow): void {
   if (first.verdict.decision !== 'ESCALATE') {
     throw new Error(`seed integrity: first purchase expected to ESCALATE (C4), got ${first.verdict.decision}`);
   }
-  flow.approve(first.id, 'approved');
+  // Real approval record; no payment leg — seeded history's execution predates this demo.
+  flow.approve(first.id, 'approved', { startPayment: false });
   const second = flow.propose('PackRight Supplies', 1_500);
   if (second.verdict.decision !== 'ALLOW') {
     throw new Error(`seed integrity: second purchase expected ALLOW, got ${second.verdict.decision}`);
