@@ -8,7 +8,7 @@
     "node": ">=22.6"
   },
   "scripts": {
-    "test": "node --experimental-strip-types --test src/engine/evaluate.test.ts",
+    "test": "node --experimental-strip-types --test src/engine/evaluate.test.ts src/compiler/validityGuard.test.ts src/compiler/schema.test.ts src/compiler/confirm.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
