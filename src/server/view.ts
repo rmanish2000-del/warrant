@@ -39,6 +39,8 @@ export interface DecisionViewModel {
     readonly visaConfirmation: string | null;
   } | null;
   readonly outboundCalls: number;
+  /** Per-decision — the DENY panel's number. 0 for every non-executed decision even while another leg polls. */
+  readonly credentialRequests: number;
   readonly sessionsAtDecision: number;
 }
 
@@ -92,6 +94,7 @@ export function stateView(flow: ConsoleFlow, cacheAvailable: boolean, paymentLeg
           }
         : null,
       outboundCalls: flow.outboundCallsFor(record.id),
+      credentialRequests: flow.credentialRequestsFor(record.id),
       sessionsAtDecision: flow.sessionsAtDecision(record.id),
     };
   });

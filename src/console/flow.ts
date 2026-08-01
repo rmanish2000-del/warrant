@@ -141,6 +141,7 @@ export class ConsoleFlow {
   /** Bumped once per payment-result retrieval. Stays 0 for every non-executed decision. */
   #credentialRequests = 0;
   #outboundPerDecision = new Map<string, number>();
+  #credentialPerDecision = new Map<string, number>();
   #paymentsByDecision = new Map<string, PaymentView>();
   #sessionsAtDecision = new Map<string, number>();
 
@@ -292,6 +293,7 @@ export class ConsoleFlow {
     while (this.#deps.clock() < expiresAtMs) {
       await sleep(interval);
       this.#credentialRequests += 1;
+      this.#credentialPerDecision.set(decisionId, (this.#credentialPerDecision.get(decisionId) ?? 0) + 1);
       this.#bumpOutbound(decisionId);
       const outcome = await provider.pollResult(session.sessionRef);
       if (outcome.kind === 'pending') continue;
@@ -364,6 +366,10 @@ export class ConsoleFlow {
   }
   outboundCallsFor(decisionId: string): number {
     return this.#outboundPerDecision.get(decisionId) ?? 0;
+  }
+  /** Per-decision — the number the DENY panel shows. The global total keeps climbing while B's leg polls. */
+  credentialRequestsFor(decisionId: string): number {
+    return this.#credentialPerDecision.get(decisionId) ?? 0;
   }
   paymentFor(decisionId: string): PaymentView | null {
     return this.#paymentsByDecision.get(decisionId) ?? null;

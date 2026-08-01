@@ -321,7 +321,7 @@ function renderDeny(d) {
     <div class="deny-evidence">${esc(evidence)}</div>
     <div class="not-happened">
       ${notHappenedCell(`${d.sessionsAtDecision} → ${sessionsNow}`, "payment sessions, before → now", d.sessionsAtDecision === sessionsNow ? "unchanged" : "changed by other decisions")}
-      ${notHappenedCell(String(state.counters.credentialRequests), "credential requests", "none requested")}
+      ${notHappenedCell(String(d.credentialRequests), "credential requests, this decision", "none requested")}
       ${notHappenedCell(String(d.outboundCalls), "outbound calls for this decision", "nothing left this machine")}
     </div>
   </div>`;

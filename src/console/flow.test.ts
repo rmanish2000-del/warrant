@@ -89,6 +89,10 @@ describe('the five canonical scenarios, end to end against the live ledger', () 
     assert.deepEqual(c.verdict, { decision: 'DENY', clause: 'C1', reason: null });
     assert.equal(flow.outboundCallsFor(c.id), 0);
     assert.equal(flow.paymentSessionsCreated, flow.sessionsAtDecision(c.id), 'sessions unchanged by the refusal');
+    // The on-camera condition: B's leg has already retrieved a credential
+    // (global counter climbed), yet the refusal's own count is zero.
+    assert.ok(flow.credentialRequests >= 1);
+    assert.equal(flow.credentialRequestsFor(c.id), 0);
 
     // D and E — cumulative denials
     const d = flow.propose('PackRight Supplies', 12_000);
