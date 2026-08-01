@@ -88,6 +88,15 @@ Decided so far:
   browser session; CACHED REPLAY (blue dashed) and BUILT-IN FALLBACK (striped, loud) are visually
   disjoint. The refusal view never depends on payment state; payment status words are camera-safe
   (never `timeout` etc.). Warrant validity always renders as absolute dates.
+- **Counter scopes are deliberate — do not "clean up" the pair into one counter.** The DENY
+  panel's cells are per-decision (`credentialRequestsFor()`, `outboundCallsFor()`) or
+  snapshot-vs-now (sessions cell), because the panel's claim is about THIS refusal. The header
+  tallies and the ₹X-of-₹15,000 readout are global (header labels say "(total)"). The
+  per-decision credential counter exists because the global one keeps climbing while an earlier
+  approval's payment leg polls in the background: rendered globally, scenario C's refusal read
+  "credential requests: 2 — none requested" on camera — a self-contradiction — and `demo:nopay`
+  masked it (its global counter stays 0). A per-decision counter next to a global one is the fix
+  for that failure, not an inconsistency.
 
 The one structural rule that is fixed by the spec, and is the whole product claim:
 
