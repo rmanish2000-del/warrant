@@ -167,7 +167,7 @@ const serveStatic = async (res: ServerResponse, requestPath: string) => {
       ? 'text/html; charset=utf-8'
       : relative.endsWith('.css')
         ? 'text/css; charset=utf-8'
-        : relative.endsWith('.js')
+        : relative.endsWith('.js') || relative.endsWith('.mjs')
           ? 'text/javascript; charset=utf-8'
           : 'application/octet-stream';
     res.writeHead(200, { 'content-type': type, 'cache-control': 'no-store' });

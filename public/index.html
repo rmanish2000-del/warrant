@@ -192,8 +192,9 @@
   </section>
 </main>
 
-<script>
-"use strict";
+<script type="module">
+import { createScrollGate } from "./dockScroll.mjs";
+const scrollGate = createScrollGate();
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
 const rupees = (n) => "₹" + Number(n).toLocaleString("en-IN");
@@ -433,6 +434,17 @@ function updateDock() {
       frame.allow = "publickey-credentials-get *; publickey-credentials-create *";
       frame.style.cssText = "width:100%;height:560px;border:1px solid var(--line);border-radius:8px;background:#fff";
       holder.appendChild(frame);
+    }
+    // Once per session, gated — a later poll (including the ones arriving
+    // while the refusal is on screen) can never move the page again. Smooth
+    // for the camera, with an instant fallback in case the animation is
+    // throttled: the passkey MUST end up on screen.
+    if (scrollGate.shouldScroll(p.sessionRef, p.status)) {
+      dock.scrollIntoView({ behavior: "smooth", block: "start" });
+      setTimeout(() => {
+        const r = dock.getBoundingClientRect();
+        if (r.top > window.innerHeight || r.bottom < 0) dock.scrollIntoView({ block: "start" });
+      }, 900);
     }
     return;
   }

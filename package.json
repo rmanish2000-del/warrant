@@ -12,7 +12,7 @@
     "demo:headless": "node --experimental-strip-types src/cli/scenarios.ts",
     "demo:nopay": "node --experimental-strip-types --env-file-if-exists=.env src/server/main.ts --nopay",
     "prava:probe": "node --experimental-strip-types --env-file-if-exists=.env src/cli/prava-probe.ts",
-    "test": "node --experimental-strip-types --test src/engine/evaluate.test.ts src/compiler/validityGuard.test.ts src/compiler/schema.test.ts src/compiler/confirm.test.ts src/compiler/compile.test.ts src/records/records.test.ts src/records/append.test.ts src/console/flow.test.ts src/provider/prava.test.ts",
+    "test": "node --experimental-strip-types --test src/engine/evaluate.test.ts src/compiler/validityGuard.test.ts src/compiler/schema.test.ts src/compiler/confirm.test.ts src/compiler/compile.test.ts src/records/records.test.ts src/records/append.test.ts src/console/flow.test.ts src/console/dockScroll.test.ts src/provider/prava.test.ts",
     "typecheck": "tsc --noEmit",
     "demo:fresh": "node --experimental-strip-types --env-file-if-exists=.env src/cli/compile.ts fresh",
     "demo:reset": "node --experimental-strip-types src/cli/compile.ts reset"
