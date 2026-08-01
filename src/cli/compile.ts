@@ -42,11 +42,20 @@ const banner = (color: string, lines: string[]) => {
   out(`${'='.repeat(width)}${COLOR.off}\n\n`);
 };
 
-const describeResult = (result: CompileResult, policyText: string, compiledAt: string) => {
+const describeResult = (
+  result: CompileResult,
+  policyText: string,
+  compiledAt: string,
+  mode: 'live' | 'replay',
+) => {
   if (result.source === 'stub') {
     banner(COLOR.amber, ['BUILT-IN FALLBACK — NOT A LIVE COMPILE', `reason: ${result.reason}`]);
-  } else {
+  } else if (mode === 'live') {
     banner(COLOR.green, [`LIVE COMPILE — served by ${result.model} (prompt v${result.promptVersion})`]);
+  } else {
+    // Replay of a live compile: NO green banner — the cyan banner above is
+    // the only one on screen. Green means "streamed just now", nothing else.
+    out(`source model: ${result.model} (prompt v${result.promptVersion}) — replayed from cache\n`);
   }
   out(`compiled at: ${compiledAt}\n`);
   out(`policy: ${policyText}\n\n`);
@@ -106,7 +115,7 @@ async function fresh(): Promise<number> {
 
   const compiledAt = new Date().toISOString();
   writeCompileCache({ policyText: DEMO_POLICY, result, compiledAt });
-  describeResult(result, DEMO_POLICY, compiledAt);
+  describeResult(result, DEMO_POLICY, compiledAt, 'live');
   out(`cached to ${CACHE_PATH} — every retake now uses demo:reset.\n`);
   return result.source === 'stub' ? 1 : 0;
 }
@@ -133,7 +142,7 @@ function reset(): number {
       'No API call was made. The stale timestamp is the tell.',
     ]);
   }
-  describeResult(cached.result, cached.policyText, cached.compiledAt);
+  describeResult(cached.result, cached.policyText, cached.compiledAt, 'replay');
   return 0;
 }
 
