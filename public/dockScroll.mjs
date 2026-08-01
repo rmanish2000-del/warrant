@@ -7,6 +7,31 @@
  * Plain browser ESM, imported unchanged by the Node test suite so the
  * once-per-session rule is pinned by a test, not by hope.
  */
+/**
+ * Open gate for the provider's approval tab. `window.open` inside a genuine
+ * click has user activation, and — unlike an anchor's default action — gives
+ * a verifiable result. The session is marked opened ONLY when a tab really
+ * opened, so the "open in another tab" note can never be shown falsely, and
+ * a refused attempt leaves the button in place for another click (nothing
+ * was loaded, nothing was consumed).
+ */
+export function createOpenGate() {
+  const opened = new Set();
+  return {
+    hasOpened(sessionRef) {
+      return opened.has(sessionRef);
+    },
+    /** 'opened' consumes; 'already' never reopens; 'refused' consumes nothing. */
+    tryOpen(sessionRef, opener) {
+      if (opened.has(sessionRef)) return 'already';
+      const tab = opener();
+      if (!tab) return 'refused';
+      opened.add(sessionRef);
+      return 'opened';
+    },
+  };
+}
+
 export function createScrollGate() {
   const scrolled = new Set();
   return {

@@ -196,7 +196,7 @@
 </main>
 
 <script type="module">
-import { createScrollGate } from "./dockScroll.mjs";
+import { createOpenGate, createScrollGate } from "./dockScroll.mjs";
 const scrollGate = createScrollGate();
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
@@ -417,7 +417,7 @@ function renderRecords() {
  * so a second click (or a later poll) can never reopen or re-burn the link.
  * The refusal view never depends on anything in here.
  */
-const openedSessions = new Set();
+const openGate = createOpenGate();
 function openedNote(sessionRef) {
   return `<div class="payment"><strong>The provider's page is open in another tab — complete the passkey there, then come back; this panel updates by itself.</strong><br>
     <span class="muted">Do not reload that tab: the link is single-use. If the tab was closed before the passkey, this session cannot be reopened. Session <span class="mono">${esc(sessionRef)}</span>.</span></div>`;
@@ -439,7 +439,7 @@ function updateDock() {
     if (holder.dataset.sessionRef !== p.sessionRef) {
       holder.dataset.sessionRef = p.sessionRef;
       holder.innerHTML = "";
-      if (openedSessions.has(p.sessionRef)) {
+      if (openGate.hasOpened(p.sessionRef)) {
         holder.innerHTML = openedNote(p.sessionRef);
       } else {
         const anchor = document.createElement("a");
@@ -448,16 +448,29 @@ function updateDock() {
         anchor.rel = "noopener noreferrer";
         anchor.className = "open-approval";
         anchor.textContent = "Open sandbox approval — the provider's page ↗";
-        anchor.addEventListener("click", () => {
-          // The link is single-use per load: consume the anchor with the click.
-          openedSessions.add(p.sessionRef);
-          holder.innerHTML = openedNote(p.sessionRef);
-        });
         const hint = document.createElement("div");
         hint.className = "muted";
         hint.style.marginTop = "8px";
         hint.textContent =
-          "Opens once, in a new tab. Do the passkey immediately — the provider's clock is already running.";
+          "Opens once, in a new tab. The ~40s passkey window starts when the page opens.";
+        anchor.addEventListener("click", (event) => {
+          // Never rely on the anchor's default action AND remove the element
+          // in the same tick — a detached anchor's pending navigation is
+          // dropped (that bug cost a take). Open explicitly, verify a tab
+          // actually exists, and only then consume the button.
+          event.preventDefault();
+          const result = openGate.tryOpen(p.sessionRef, () =>
+            window.open(p.iframeUrl, "_blank", "noopener"),
+          );
+          if (result === "refused") {
+            hint.textContent =
+              "The browser refused the new tab — nothing was opened or consumed. Click once more; if it persists, allow pop-ups for this site.";
+            hint.style.color = "var(--deny)";
+            hint.style.fontWeight = "600";
+            return; // button stays; the link was never loaded
+          }
+          holder.innerHTML = openedNote(p.sessionRef);
+        });
         holder.appendChild(anchor);
         holder.appendChild(hint);
       }
