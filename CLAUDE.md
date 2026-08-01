@@ -58,9 +58,12 @@ Decided so far:
   recording it here.
 - **Compiler model call** — `claude-opus-5`, streaming, adaptive thinking with
   `display: "summarized"` (the 24–30s compile streams visible reasoning, not a dead pause),
-  structured output via `output_config.format` (`additionalProperties: false` throughout), and
-  server-side refusal fallback (`fallbacks: "default"`). Effort stays `high` — measured 24–30s;
-  do not lower it to speed the demo (low risks missing the overlap flags, which are a demo beat).
+  structured output via `output_config.format` (`additionalProperties: false` throughout).
+  Effort stays `high` — measured 24–30s; do not lower it to speed the demo (low risks missing
+  the overlap flags, which are a demo beat). **No server-side refusal fallback, ever** — the
+  LIVE COMPILE badge must mean exactly one thing (this model, this prompt); a silent server-side
+  substitution keeps the badge green while provenance changes, undetectable on camera. Failures
+  are loud: labelled stub, or replay the cache. Do not re-add `fallbacks`.
 - **`src/engine/`** — pure, clock-free evaluation. `evaluate(warrant, ledger, proposal, at)` takes
   time as a parameter and reads structured fields only: its input type `EvaluableWarrant` omits
   `clauses`, so compiled English text cannot influence a verdict by construction.
@@ -122,6 +125,12 @@ clause that produced the outcome). Only the determining clause is cited in the U
 
 Policy, compiled warrant, and clause IDs C1–C4 are fixed in `01_PRODUCT_SPEC.md` §5–6. Do not
 paraphrase them.
+
+**Deliberate divergence from pack §5:** the demo policy is the **four-sentence** version — the
+minimum-stock sentence ("Keep packaging supplies above three days of stock") is dropped, and
+`minimum_stock_days` is not compiled. This is a scope decision, not an oversight: the recording
+says "Four sentences" out loud, and the recording is the deliverable. Do not add the fifth
+sentence back.
 
 Scenarios run **in order against an accumulating ledger** seeded at ₹4,000 by prior authorization
 records — so the console's "₹4,000 of ₹15,000" readout is derived, not asserted. Authorized spend
