@@ -15,8 +15,9 @@ export type ClauseId = 'C1' | 'C2' | 'C3' | 'C4';
 
 /**
  * Clauses that can determine a DENY.
- * C1 — approved suppliers only (the human resolved unknown-supplier to deny).
- * C2 — cumulative cap over the limit window; escalation cannot cure a breach.
+ * C1 — approved suppliers only (when resolved to deny — the canonical choice).
+ * C2 — cumulative cap over the limit window (when resolved to deny — the
+ *      canonical choice: escalation cannot cure a breach).
  */
 export type DenialClause = 'C1' | 'C2';
 
@@ -26,8 +27,28 @@ export type DenialClause = 'C1' | 'C2';
  * C4 — approved supplier with no prior authorized transaction under this
  *      warrant. Under the strict allowlist reading C4 can never fire for an
  *      unapproved supplier — C1 catches it first. Intentional (spec §7).
+ * C1 / C2 — only when the human resolved the corresponding clause overlap to
+ *      'escalate' (see ClauseResolutions). The canonical demo resolves both
+ *      to 'deny', so on the demo path only C3/C4 escalate.
  */
-export type EscalationClause = 'C3' | 'C4';
+export type EscalationClause = 'C1' | 'C2' | 'C3' | 'C4';
+
+/**
+ * Human-confirmed resolutions of the three clause overlaps the policy admits.
+ * These are the ONLY paths a compiler ambiguity option may set (its `sets`
+ * field is a closed enum over exactly these), which makes every flag
+ * load-bearing by construction — a question whose answer changes nothing is
+ * unexpressible. The evaluator reads them as structured fields; canonical
+ * demo values are deny / deny / cite_C3.
+ */
+export interface ClauseResolutions {
+  /** C1/C4 overlap — is an unknown supplier refused outright, or escalated? */
+  readonly onUnapprovedSupplier: 'deny' | 'escalate';
+  /** C2/C3 overlap — does human approval authorise breaching the cumulative cap? */
+  readonly onCapBreachDespiteApproval: 'deny' | 'escalate';
+  /** C3/C4 overlap — both escalate; which clause is cited for a new supplier above the threshold? */
+  readonly whenNewSupplierAboveThreshold: 'cite_C3' | 'cite_C4';
+}
 
 /**
  * Denials that are not clause breaches — both fail closed.
@@ -54,6 +75,8 @@ export interface CompiledPolicy {
   readonly approvalThreshold: number;
   /** Warrant currency ("INR" in the demo). Proposals in any other currency are refused. */
   readonly currency: string;
+  /** Human-confirmed overlap resolutions, applied at confirmation from the chosen ambiguity options. */
+  readonly resolutions: ClauseResolutions;
 }
 
 /** One clause of the compiled warrant as confirmed by the human — id plus display text (spec §6). */

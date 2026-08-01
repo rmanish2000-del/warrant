@@ -64,25 +64,39 @@ export function evaluate(
     return { decision: 'DENY', clause: null, reason: 'INVALID_PROPOSAL' };
   }
 
-  const { approvedSuppliers, cumulativeCap, approvalThreshold } = warrant.policy;
+  const { approvedSuppliers, cumulativeCap, approvalThreshold, resolutions } = warrant.policy;
 
-  // C1 — approved suppliers only.
+  // C1 — approved suppliers only. The human resolved what "only" means for an
+  // unknown supplier; the canonical resolution is deny.
   if (!approvedSuppliers.includes(proposal.supplier)) {
-    return { decision: 'DENY', clause: 'C1', reason: null };
+    return resolutions.onUnapprovedSupplier === 'deny'
+      ? { decision: 'DENY', clause: 'C1', reason: null }
+      : { decision: 'ESCALATE', clause: 'C1', reason: null };
   }
 
-  // C2 — the cap is inclusive: a running total of exactly the cap is not a breach.
+  // C2 — the cap is inclusive: a running total of exactly the cap is not a
+  // breach. Whether approval can cure a breach is the human's resolved choice;
+  // canonically it cannot ("escalation cannot cure a breach").
   if (cumulativeAuthorized(ledger) + proposal.amount > cumulativeCap) {
-    return { decision: 'DENY', clause: 'C2', reason: null };
+    return resolutions.onCapBreachDespiteApproval === 'deny'
+      ? { decision: 'DENY', clause: 'C2', reason: null }
+      : { decision: 'ESCALATE', clause: 'C2', reason: null };
   }
+
+  const isNewSupplier = !hasTransacted(ledger, proposal.supplier);
 
   // C3 — strictly above the threshold escalates; exactly at it does not.
+  // Where C3 and C4 both apply the outcome is escalation either way; the
+  // citation is the human's resolved choice (canonically C3, the amount
+  // being the more specific fact).
   if (proposal.amount > approvalThreshold) {
-    return { decision: 'ESCALATE', clause: 'C3', reason: null };
+    const clause =
+      isNewSupplier && resolutions.whenNewSupplierAboveThreshold === 'cite_C4' ? 'C4' : 'C3';
+    return { decision: 'ESCALATE', clause, reason: null };
   }
 
   // C4 — approved, but no prior authorized transaction under this warrant.
-  if (!hasTransacted(ledger, proposal.supplier)) {
+  if (isNewSupplier) {
     return { decision: 'ESCALATE', clause: 'C4', reason: null };
   }
 

@@ -10,6 +10,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { cumulativeAuthorized, evaluate } from './evaluate.ts';
 import type {
+  ClauseResolutions,
   CompiledPolicy,
   EvaluableWarrant,
   LedgerEntry,
@@ -24,12 +25,20 @@ const T0 = 0;
 /** Mid-validity evaluation time used everywhere expiry is not the subject. */
 const AT = T0 + 2 * DAY;
 
+/** Canonical overlap resolutions — the choices the human confirms on the demo path. */
+const CANONICAL_RESOLUTIONS: ClauseResolutions = {
+  onUnapprovedSupplier: 'deny',
+  onCapBreachDespiteApproval: 'deny',
+  whenNewSupplierAboveThreshold: 'cite_C3',
+};
+
 /** Canonical policy — spec §6. One approved supplier; do not add more here. */
 const CANONICAL_POLICY: CompiledPolicy = {
   approvedSuppliers: ['PackRight Supplies'],
   cumulativeCap: 15_000,
   approvalThreshold: 5_000,
   currency: 'INR',
+  resolutions: CANONICAL_RESOLUTIONS,
 };
 
 /** Canonical clause text — spec §6. Display-only; the type system keeps it out of evaluate's reach. */
@@ -62,7 +71,11 @@ const seedLedger = (): LedgerEntry[] => [
 const inr = (supplier: string, amount: number): Proposal => ({ supplier, amount, currency: 'INR' });
 
 const ALLOWED: Verdict = { decision: 'ALLOW', clause: null, reason: null };
-const escalated = (clause: 'C3' | 'C4'): Verdict => ({ decision: 'ESCALATE', clause, reason: null });
+const escalated = (clause: 'C1' | 'C2' | 'C3' | 'C4'): Verdict => ({
+  decision: 'ESCALATE',
+  clause,
+  reason: null,
+});
 const denied = (clause: 'C1' | 'C2'): Verdict => ({ decision: 'DENY', clause, reason: null });
 const refused = (reason: 'EXPIRED_MANDATE' | 'INVALID_PROPOSAL'): Verdict => ({
   decision: 'DENY',
@@ -161,6 +174,45 @@ describe('precedence', () => {
       'fixture must also breach the cap, or the C1-over-C2 assertion proves nothing',
     );
     assert.deepEqual(evaluate(WARRANT, ledger, proposal, AT), denied('C1'));
+  });
+});
+
+describe('resolved clause overlaps change outcomes — the evaluator reads resolutions as structured fields', () => {
+  const withResolutions = (overrides: Partial<ClauseResolutions>): Warrant => ({
+    ...WARRANT,
+    policy: { ...CANONICAL_POLICY, resolutions: { ...CANONICAL_RESOLUTIONS, ...overrides } },
+  });
+
+  it("C1 resolved to 'escalate': an unknown supplier escalates citing C1 instead of denying", () => {
+    const warrant = withResolutions({ onUnapprovedSupplier: 'escalate' });
+    assert.deepEqual(evaluate(warrant, seedLedger(), inr('Unknown Vendor', 4_900), AT), escalated('C1'));
+  });
+
+  it("C2 resolved to 'escalate': a cap breach escalates citing C2 — approval may cure it", () => {
+    const warrant = withResolutions({ onCapBreachDespiteApproval: 'escalate' });
+    assert.deepEqual(evaluate(warrant, seedLedger(), inr('PackRight Supplies', 12_000), AT), escalated('C2'));
+  });
+
+  it("C3/C4 resolved to cite C4: a new approved supplier above the threshold cites C4", () => {
+    const warrant: Warrant = {
+      ...withResolutions({ whenNewSupplierAboveThreshold: 'cite_C4' }),
+      policy: {
+        ...CANONICAL_POLICY,
+        approvedSuppliers: ['PackRight Supplies', 'CartonWorks'],
+        resolutions: { ...CANONICAL_RESOLUTIONS, whenNewSupplierAboveThreshold: 'cite_C4' },
+      },
+    };
+    assert.deepEqual(evaluate(warrant, seedLedger(), inr('CartonWorks', 6_000), AT), escalated('C4'));
+  });
+
+  it('canonical resolutions leave every canonical scenario outcome unchanged', () => {
+    // The five-scenario suite above runs against CANONICAL_RESOLUTIONS; this
+    // test exists so a future default-flip fails somewhere self-describing.
+    assert.deepEqual(CANONICAL_RESOLUTIONS, {
+      onUnapprovedSupplier: 'deny',
+      onCapBreachDespiteApproval: 'deny',
+      whenNewSupplierAboveThreshold: 'cite_C3',
+    });
   });
 });
 
