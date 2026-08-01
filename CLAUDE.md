@@ -282,5 +282,8 @@ committed.** This is decided — do not re-open it.
 
 ## Commands
 
-None yet — no toolchain has been chosen. Record build, test, lint, single-test, and `npm run demo`
-invocations here as they are established, so this section stays the fastest way to run the project.
+- `npm test` — engine test suite (Node's built-in runner; `.ts` runs via `--experimental-strip-types`, Node ≥22.6).
+- `npm run typecheck` — `tsc --noEmit`, strict; `erasableSyntaxOnly` keeps every source file strippable.
+
+Record build, lint, single-test, and `npm run demo` invocations here as they are established, so
+this section stays the fastest way to run the project.

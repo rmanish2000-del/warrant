@@ -1,0 +1,18 @@
+{
+  "name": "warrant",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Authorization layer for AI purchasing agents — sandbox demonstration",
+  "type": "module",
+  "engines": {
+    "node": ">=22.6"
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types --test src/engine/evaluate.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.9.2"
+  }
+}
