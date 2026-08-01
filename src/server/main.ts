@@ -42,6 +42,7 @@ const FROZEN_EPOCH = Date.UTC(2026, 7, 2, 9, 0, 0); // 2 Aug 2026 09:00Z — pla
 let frozenTick = 0;
 const clock = freezeClock ? () => FROZEN_EPOCH + ++frozenTick * 1000 : () => Date.now();
 const secretKey = process.env['PRAVA_SK'];
+const sandboxUserEmail = process.env['PRAVA_USER_EMAIL'];
 let provider = null as import('../console/flow.ts').ProviderPort | null;
 let paymentLeg = 'not configured';
 if (noPay) {
@@ -49,8 +50,16 @@ if (noPay) {
   process.stdout.write(
     `payment leg: OFF (--skip-payment) — refusals, approvals, and the record run without it${freezeClock ? ' · clock frozen for byte-identical runs' : ''}\n`,
   );
-} else if (secretKey) {
-  let prava = new PravaSandboxProvider({ secretKey, cardId: process.env['PRAVA_CARD_ID'] ?? null });
+} else if (secretKey && !sandboxUserEmail) {
+  process.stdout.write(
+    'payment leg: NOT attached — PRAVA_USER_EMAIL missing (set it in .env to the email your sandbox account uses)\n',
+  );
+} else if (secretKey && sandboxUserEmail) {
+  let prava = new PravaSandboxProvider({
+    secretKey,
+    userEmail: sandboxUserEmail,
+    cardId: process.env['PRAVA_CARD_ID'] ?? null,
+  });
   try {
     const cardId = process.env['PRAVA_CARD_ID'] ?? (await prava.discoverDefaultCardId());
     if (cardId) {

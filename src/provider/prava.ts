@@ -45,7 +45,8 @@ export interface PravaConfig {
   /** Pre-selects the saved card so no on-camera enrollment (~193s). Discover via listCards. */
   readonly cardId?: string | null;
   readonly userId?: string;
-  readonly userEmail?: string;
+  /** The email the sandbox account (and its enrolled card) is tied to. From PRAVA_USER_EMAIL — never hardcoded. */
+  readonly userEmail: string;
   readonly countryCodeIso2?: string;
   /** Injectable for tests. Defaults to global fetch. */
   readonly fetchImpl?: typeof fetch;
@@ -67,11 +68,12 @@ export class PravaSandboxProvider implements ProviderPort {
 
   constructor(config: PravaConfig) {
     if (!config.secretKey) throw new ProviderError('PRAVA_SK is not set — payment leg cannot attach');
+    if (!config.userEmail) throw new ProviderError('PRAVA_USER_EMAIL is not set — payment leg cannot attach');
     this.#config = {
       secretKey: config.secretKey,
       cardId: config.cardId ?? null,
       userId: config.userId ?? 'test_user_1',
-      userEmail: config.userEmail ?? 'founder@aiworkspacehq.com',
+      userEmail: config.userEmail,
       countryCodeIso2: config.countryCodeIso2 ?? 'IN',
       fetchImpl: config.fetchImpl ?? fetch,
       baseUrl: config.baseUrl ?? PRAVA_SANDBOX_BASE_URL,
@@ -193,7 +195,7 @@ export class PravaSandboxProvider implements ProviderPort {
       secretKey: this.#config.secretKey,
       cardId,
       userId: this.#config.userId,
-      userEmail: this.#config.userEmail,
+      userEmail: this.#config.userEmail, // required, carried through
       countryCodeIso2: this.#config.countryCodeIso2,
       fetchImpl: this.#config.fetchImpl,
       baseUrl: this.#config.baseUrl,

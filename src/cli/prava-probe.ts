@@ -31,8 +31,11 @@ const redact = (value: unknown): unknown => {
 const out = (text: string) => process.stdout.write(`${text}\n`);
 
 const secretKey = process.env['PRAVA_SK'];
-if (!secretKey) {
-  out('PRAVA_SK is not set (checked env only — value never printed). Put it in .env and retry.');
+const userEmail = process.env['PRAVA_USER_EMAIL'];
+if (!secretKey || !userEmail) {
+  out(
+    `${!secretKey ? 'PRAVA_SK' : 'PRAVA_USER_EMAIL'} is not set (checked env only — values never printed). Put it in .env and retry.`,
+  );
   process.exit(1);
 }
 const headers = {
@@ -58,7 +61,7 @@ const createRes = await fetch(`${BASE}/v1/sessions`, {
   headers,
   body: JSON.stringify({
     user_id: 'test_user_1',
-    user_email: 'founder@aiworkspacehq.com',
+    user_email: userEmail,
     total_amount: '10.00',
     currency: 'INR',
     description: 'shape probe — will lapse unused',
