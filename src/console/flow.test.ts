@@ -4,6 +4,7 @@ import { canonicalAnswersFor, CANONICAL_PROPOSALS, ConsoleFlow, seedHistory } fr
 import type { CreatedSession, PollOutcome, ProviderPort } from './flow.ts';
 import { stubDraft } from '../compiler/draft.ts';
 import { cumulativeAuthorized } from '../engine/evaluate.ts';
+import { ProviderError } from '../provider/prava.ts';
 import { EnforcementError } from '../records/append.ts';
 
 const T0 = 1_754_000_000_000;
@@ -238,6 +239,49 @@ describe('screen safety — provider extras are structurally unreachable', () =>
     assert.ok(!everything.includes('tok-should-never-appear'));
     assert.ok(!everything.includes('credential-should-never-appear'));
     assert.ok(!everything.includes('dynamic_cvv'));
+  });
+});
+
+describe('provider outage (503) — one calm sentence, and the refusal is untouched', () => {
+  it('a 503 marks the leg unavailable; DENY still makes zero calls, even with a forced approval', async () => {
+    let providerCalls = 0;
+    const down: ProviderPort = {
+      async createSession() {
+        providerCalls += 1;
+        throw new ProviderError('provider returned HTTP 503', 503);
+      },
+      async pollResult() {
+        providerCalls += 1;
+        throw new ProviderError('provider returned HTTP 503', 503);
+      },
+      async reportApproved() {
+        providerCalls += 1;
+        throw new ProviderError('provider returned HTTP 503', 503);
+      },
+    };
+    const flow = new ConsoleFlow({ provider: down, clock: makeClock(), sleep: async () => {}, pollIntervalMs: 1 });
+    flow.adoptDraft({ source: 'stub', draft: stubDraft(), reason: 'test' }, 'stub');
+    flow.confirmWarrant(canonicalAnswersFor(stubDraft()));
+    seedHistory(flow);
+
+    // The escalation leg fails into a single state, no throw escaping.
+    const b = flow.propose('PackRight Supplies', 6_200);
+    flow.approve(b.id, 'approved');
+    await settle();
+    assert.equal(flow.paymentFor(b.id)?.status, 'unavailable');
+    assert.equal(providerCalls, 1); // exactly the create attempt — no retry storm
+
+    // The refusal path with the provider down: zero outbound, even forced.
+    const c = flow.propose('Unknown Vendor', 4_900);
+    assert.deepEqual(c.verdict, { decision: 'DENY', clause: 'C1', reason: null });
+    assert.equal(flow.outboundCallsFor(c.id), 0);
+    assert.throws(
+      () => flow.approve(c.id, 'approved'),
+      (err: unknown) => err instanceof EnforcementError && err.kind === 'not-an-escalation',
+    );
+    assert.equal(flow.outboundCallsFor(c.id), 0);
+    assert.equal(providerCalls, 1);
+    assert.deepEqual(flow.log.verify(), { ok: true });
   });
 });
 
