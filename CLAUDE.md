@@ -45,9 +45,24 @@ Primary user: an operations manager or business owner deploying an AI purchasing
 
 ## Architecture
 
-**Not yet decided.** It is to be designed during this build, not inherited from anywhere. Record the
-decisions here as they are made — module boundaries, data flow, storage, and where the process
-boundary sits between model and evaluator.
+Being designed during this build, not inherited from anywhere. Record decisions here as they are
+made — module boundaries, data flow, storage, and where the process boundary sits between model and
+evaluator.
+
+Decided so far:
+
+- **Toolchain** — TypeScript strict, zero runtime dependencies; tests on `node:test` via type
+  stripping. `erasableSyntaxOnly` is load-bearing: source must stay strippable.
+- **`src/engine/`** — pure, clock-free evaluation. `evaluate(warrant, ledger, proposal, at)` takes
+  time as a parameter and reads structured fields only: its input type `EvaluableWarrant` omits
+  `clauses`, so compiled English text cannot influence a verdict by construction.
+- **Verdict union** enforces exactly-one-citation structurally. Expired-mandate and
+  invalid-proposal denials carry `reason` with `clause: null` — distinct from clause breaches.
+- **Evaluation order is precedence**: validity → shape → C1 → C2 → C3 → C4. C1 before C2 is guarded
+  by a dedicated test (scenario C breaches the cap arithmetically and must still cite C1).
+- **Boundaries**: cap inclusive (total of exactly ₹15,000 escalates, +1 denies); threshold strict
+  (exactly ₹5,000 allows). Validity is `issuedAt ≤ t < expiresAt`; outside it — including before
+  issuance and NaN timestamps — fails closed as expired-mandate.
 
 The one structural rule that is fixed by the spec, and is the whole product claim:
 
