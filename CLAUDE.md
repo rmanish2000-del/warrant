@@ -227,10 +227,11 @@ decision categories, human confirmation and approval, Prava sandbox integration,
 explanation, the tamper-evident record, public-safe module interfaces, and the demo's limitations and
 fallback behaviour.
 
-**Never disclose:** AI Workspace architecture · multi-agent orchestration · private governance
-framework · memory systems · internal prompt libraries · private APIs · internal workflows ·
-repository structure of private systems · roadmap · strategic implementation details · private
-datasets · security controls unrelated to the public demo.
+**Never disclose:** the internal platform's architecture or internals · multi-agent
+orchestration · private governance framework · memory systems · internal prompt collections ·
+private APIs · internal workflows · repository structure of private systems · roadmap ·
+strategic implementation details · private datasets · security controls unrelated to the
+public demo.
 
 This constrains code, comments, commit messages, README, and UI copy — not just what is said aloud.
 
@@ -245,7 +246,7 @@ In any artifact — UI, docs, comments, commits:
 - "production secure"
 - "fully autonomous"
 - "compliant with all regulations"
-- "built on AI Workspace internals"
+- "built on internal platform components"
 - "Claude decides" — it does not
 
 ### Say instead
