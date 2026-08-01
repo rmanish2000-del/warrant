@@ -145,6 +145,14 @@ minimum-stock sentence ("Keep packaging supplies above three days of stock") is 
 says "Four sentences" out loud, and the recording is the deliverable. Do not add the fifth
 sentence back.
 
+**Sentence one names the supplier — "Buy only from approved suppliers — PackRight Supplies." —
+and must keep doing so.** A live compile (1 Aug) given the unnamed version correctly refused to
+invent a supplier (fabrication is a listed failure condition) and produced an empty allowlist,
+which made scenario A deny on C1 and the seed refuse to load. The name is load-bearing input,
+not clutter; removing it resurfaces the failure as a wrong verdict, not as an error. The pack §6
+canonical warrant lists PackRight for exactly this reason. Still four sentences — the spoken
+"Four sentences" beat holds.
+
 Scenarios run **in order against an accumulating ledger** seeded at ₹4,000 by prior authorization
 records — so the console's "₹4,000 of ₹15,000" readout is derived, not asserted. Authorized spend
 (including approved escalations) accumulates; denials add nothing.

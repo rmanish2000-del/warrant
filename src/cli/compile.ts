@@ -17,9 +17,14 @@ import type { CompileResult } from '../compiler/compile.ts';
 import { CACHE_PATH, readCompileCache, writeCompileCache } from '../compiler/cache.ts';
 import { CompilerRejection } from '../compiler/validityGuard.ts';
 
-/** The demo policy, as given for this build (four sentences — spec §5 family). */
+/**
+ * The demo policy — four sentences. Sentence one NAMES the supplier on
+ * purpose: a live compile correctly refused to invent one and produced an
+ * empty allowlist, which made scenario A deny on C1. See CLAUDE.md
+ * "Canonical demo data". Do not shorten it back.
+ */
 const DEMO_POLICY =
-  "Buy only from approved suppliers. Don't exceed ₹15,000 per week. " +
+  "Buy only from approved suppliers — PackRight Supplies. Don't exceed ₹15,000 per week. " +
   'Any order above ₹5,000 requires my approval. Never buy from a new supplier without approval.';
 
 const out = (text: string) => process.stdout.write(text);
