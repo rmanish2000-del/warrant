@@ -8,8 +8,10 @@
     "node": ">=22.6"
   },
   "scripts": {
-    "test": "node --experimental-strip-types --test src/engine/evaluate.test.ts src/compiler/validityGuard.test.ts src/compiler/schema.test.ts src/compiler/confirm.test.ts",
-    "typecheck": "tsc --noEmit"
+    "test": "node --experimental-strip-types --test src/engine/evaluate.test.ts src/compiler/validityGuard.test.ts src/compiler/schema.test.ts src/compiler/confirm.test.ts src/compiler/compile.test.ts",
+    "typecheck": "tsc --noEmit",
+    "demo:fresh": "node --experimental-strip-types --env-file-if-exists=.env src/cli/compile.ts fresh",
+    "demo:reset": "node --experimental-strip-types src/cli/compile.ts reset"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

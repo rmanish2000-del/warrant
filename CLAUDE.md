@@ -305,8 +305,10 @@ committed.** This is decided — do not re-open it.
 
 ## Commands
 
-- `npm test` — engine test suite (Node's built-in runner; `.ts` runs via `--experimental-strip-types`, Node ≥22.6).
+- `npm test` — full test suite (Node's built-in runner; `.ts` runs via `--experimental-strip-types`, Node ≥22.6). New test files must be added to the script's explicit list — discovery is deliberate, not globbed.
 - `npm run typecheck` — `tsc --noEmit`, strict; `erasableSyntaxOnly` keeps every source file strippable.
+- `npm run demo:fresh` — the ONE live compile per recording session (needs `ANTHROPIC_API_KEY` in `.env`); streams the model's output and writes `demo-policy-compiled.json` (gitignored via `demo-policy*.json`).
+- `npm run demo:reset` — replays the exact cached compile; never calls the API. Every retake after the compile take uses this.
 
 Record build, lint, single-test, and `npm run demo` invocations here as they are established, so
 this section stays the fastest way to run the project.
