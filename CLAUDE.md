@@ -395,6 +395,7 @@ committed.** This is decided — do not re-open it.
 - `npm run demo:headless` — the five canonical scenarios end to end without the browser; recording fallback and exit-code check (non-zero on any deviation from the canonical table).
 - `npm run demo:nopay` — the console with the payment leg OFF (the recording card's fallback if the payment leg misbehaves on camera). DENY, approvals, and the record are unaffected. Runs with a **frozen clock** (fixed epoch, +1s per read) so identical click sequences are byte-identical between runs. Flags are `--skip-payment --freeze-clock` — never rename to `--no-payment`: npm eats `--no-*` args as its own config negation.
 - `npm run prava:probe` — one throwaway sandbox session + saved-card list, raw response shapes printed with credential-bearing values redacted. Run before trusting any parser change.
+- `npm run gonogo` — the hour-32 Go/No-Go probe: one INR session through the real escalation path, ≤10s, verdict GO / DEGRADED / NO-GO (exit 0/2/1). Never touches the compile cache (stub warrant), never attempts the passkey.
 
 Record build, lint, single-test, and `npm run demo` invocations here as they are established, so
 this section stays the fastest way to run the project.
