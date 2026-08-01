@@ -2,6 +2,24 @@
 
 Authorization layer for AI purchasing agents
 
+## The authorization record
+
+Every decision is appended to a hash-chained, append-only record: the proposal, the verdict, the
+determining clause, the human approval or rejection (with the approver), and the provider session
+result when one exists. Each entry's hash covers its content plus the previous entry's hash, from a
+defined genesis — **tamper-evident**, and deliberately not described as "signed" or
+"cryptographically" anything: there are no digital signatures here, and the record does not claim
+non-repudiation. Cumulative spend is derived by summing authorized entries; there is no stored
+counter. The record exports as a single JSON document from the console (`Export JSON`).
+
+**Known gap, by design:** spend counts against the cap at **approval**, not at settlement. A payment
+session that lapses or fails after approval still consumes headroom. This is the correct direction
+of error for a spending cap — counting only settlements would let an agent open ten sessions at
+once and blow through the cap while all are in flight. Each exported decision entry carries a
+`spendStatus` field (`hold` / `settled` / `not-counted`) so a future reconciliation could release
+expired holds by **appending** release entries; that reconciliation is not built, and this is the
+disclosure of it.
+
 ## Disclosure of pre-existing work
 
 **Repository scaffold.** This repository was created on 30 July 2026 with a README stub, and the setup commits — `.gitignore`, `.env.example`, `CLAUDE.md` and this README — were made on 31 July 2026, before the build window opened. It contains no application code.

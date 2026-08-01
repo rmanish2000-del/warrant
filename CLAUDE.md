@@ -88,6 +88,11 @@ Decided so far:
   browser session; CACHED REPLAY (blue dashed) and BUILT-IN FALLBACK (striped, loud) are visually
   disjoint. The refusal view never depends on payment state; payment status words are camera-safe
   (never `timeout` etc.). Warrant validity always renders as absolute dates.
+- **Record export** — `GET /api/export`, built field-by-field in `src/server/view.ts::exportView`.
+  Per-decision `spendStatus` (`hold`/`settled`/`not-counted`) is **derived**, never stored: spend
+  counts at approval, not settlement (a lapsed session keeps its hold — correct direction of error
+  for a cap; README names the gap). Future reconciliation = appended release entries, not edits.
+  Not built, disclosed.
 - **Counter scopes are deliberate — do not "clean up" the pair into one counter.** The DENY
   panel's cells are per-decision (`credentialRequestsFor()`, `outboundCallsFor()`) or
   snapshot-vs-now (sessions cell), because the panel's claim is about THIS refusal. The header
