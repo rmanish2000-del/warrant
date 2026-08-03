@@ -343,7 +343,7 @@
            demo — the public page must never render a live-compile control,
            not even for the beat before state arrives. -->
       <button id="btn-compile" class="primary hidden">Compile</button>
-      <button id="btn-cache" class="hidden">Use cached compile</button>
+      <button id="btn-cache" class="primary hidden">Use cached compile</button>
       <span id="cache-note" class="muted hidden" style="max-width:640px">Live compilation runs against Claude and is disabled on the public demo — this replays a real compile from 1 Aug, timestamp on the badge. The live compile is in the video, and runs locally with an API key.</span>
       <span id="compile-note" class="streaming-note">Claude is writing clauses — live</span>
     </div>
@@ -371,7 +371,9 @@
     <div class="sec-body">
     <div class="validity" id="validity"></div>
     <div class="row" style="margin-top:10px">
-      <button id="btn-seed">Seed prior history (₹4,000 — recorded approvals, no hidden setup)</button>
+      <!-- Primary: this is the step's one action — dark, like every other
+           journey-primary control, so it reads as "press me". -->
+      <button id="btn-seed" class="primary">Seed prior history (₹4,000 — recorded approvals, no hidden setup)</button>
       <span id="seed-note" class="muted hidden" style="max-width:720px">Adds two real prior authorisations (₹2,500 escalated-and-approved, ₹1,500 allowed) as actual ledger entries — not a display value. The weekly total is derived by summing the record, which is what makes the later refusals land on accumulation rather than on any single amount.</span>
     </div>
     </div>
