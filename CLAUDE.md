@@ -85,7 +85,8 @@ Decided so far:
 - **Console** — `src/server/main.ts` (node:http, 127.0.0.1 only) + `public/index.html` (no
   framework, no bundler). View-model in `src/server/view.ts` builds every field explicitly. Badge
   semantics are load-bearing: green LIVE COMPILE only for a compile streamed in the current
-  browser session; CACHED REPLAY (blue dashed) and BUILT-IN FALLBACK (striped, loud) are visually
+  browser session; CACHED REPLAY (dashed outline + stale timestamp — recording-era blue, re-themed
+  to the accent teal post-submission, founder decision) and BUILT-IN FALLBACK (striped, loud) are visually
   disjoint. The refusal view never depends on payment state; payment status words are camera-safe
   (never `timeout` etc.). Warrant validity always renders as absolute dates.
 - **Record export** — `GET /api/export`, built field-by-field in `src/server/view.ts::exportView`.
