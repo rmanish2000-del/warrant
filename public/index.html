@@ -31,6 +31,9 @@
     --chip-bg: #f0efec;
     --row-hover: #f4f3f0;
     --row-selected: #ecebe7;
+    /* on the dark credential card */
+    --muted-on-dark: #b8b8b8;
+    --accent-on-dark: #2dd4bf;
     /* semantic verdicts — each pairs a colour with a tint surface; the three
        states also differ by fill vs outline vs weight, not hue alone */
     --allow: #1e6f40;
@@ -179,8 +182,19 @@
                   border-radius: 9px; padding: 10px 14px; font-weight: 600; margin-top: 10px; display: none; }
   .payment { border: 1px dashed var(--line); border-radius: 9px; padding: 10px 14px; margin-top: 12px;
              font-size: 16px; background: var(--panel); overflow-wrap: anywhere; }
-  .payment-confirmed { border: 2px solid var(--allow); border-radius: 10px; padding: 16px 20px;
-                       background: var(--allow-tint); font-size: 19px; overflow-wrap: anywhere; }
+  /* The confirmation as a credential-style card, Prava-family: dark tile,
+     mono refs, teal detail. It shows the CONFIRMATION — the credential's
+     values never reach this page (invariant: never displayed, never stored),
+     and the masked row says exactly that. */
+  .payment-confirmed { border: 0; border-top: 4px solid var(--accent); border-radius: 16px;
+                       padding: 20px 22px; background: var(--ink); color: var(--on-dark);
+                       font-size: 19px; overflow-wrap: anywhere; max-width: 560px;
+                       box-shadow: 0 6px 20px rgba(23, 23, 23, .18); }
+  .payment-confirmed .muted { color: var(--muted-on-dark); }
+  .payment-confirmed .mono { color: var(--accent-on-dark); }
+  .cred-mask { font-family: var(--font-mono); font-size: 22px; letter-spacing: 4px;
+               color: var(--muted-on-dark); margin: 14px 0 2px; }
+  .cred-mask-caption { font-size: 14px; color: var(--muted-on-dark); letter-spacing: normal; }
   .open-approval { display: inline-block; background: var(--ink); color: var(--on-dark); font-weight: 800;
                    font-size: 19px; padding: 14px 26px; border-radius: 999px; text-decoration: none;
                    max-width: 100%; }
@@ -734,6 +748,8 @@ function updateDock() {
       <span class="mono">visa_confirmation:</span> <strong style="font-size:24px">“${esc(p.visaConfirmation || "")}”</strong>
       <div class="muted" style="margin-top:6px">The provider's word, from their own confirmation call ·
       session <span class="mono">${esc(p.sessionRef || "")}</span> · ${esc(d.supplier)} · ${rupees(d.amount)}</div>
+      <div class="cred-mask" aria-hidden="true">•••• •••• •••• ••••</div>
+      <div class="cred-mask-caption">credential issued server-side — never displayed, never stored</div>
     </div>`;
   } else {
     label.textContent = "";
