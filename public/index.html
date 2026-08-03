@@ -163,6 +163,7 @@
     <div class="validity" id="validity"></div>
     <div class="row" style="margin-top:10px">
       <button id="btn-seed">Seed prior history (₹4,000 — recorded approvals, no hidden setup)</button>
+      <span id="seed-note" class="muted hidden" style="max-width:720px">Adds two real prior authorisations (₹2,500 escalated-and-approved, ₹1,500 allowed) as actual ledger entries — not a display value. The weekly total is derived by summing the record, which is what makes the later refusals land on accumulation rather than on any single amount.</span>
     </div>
   </section>
 
@@ -538,6 +539,7 @@ function render() {
   // so these lines would be untrue there.
   $("policy-note").classList.toggle("hidden", !state.publicDemo);
   $("cache-note").classList.toggle("hidden", !state.publicDemo);
+  $("seed-note").classList.toggle("hidden", !state.publicDemo);
   $("btn-cache").classList.toggle("hidden", !state.cacheAvailable || !!state.draft);
   $("c-sessions").textContent = state.counters.paymentSessions;
   $("c-creds").textContent = state.counters.credentialRequests;
