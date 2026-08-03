@@ -100,3 +100,11 @@ the event.
 **Everything else — every line of application code — was written inside the build window (31 July
 to 2 August 2026 Pacific / 1 to 3 August 2026 India time), and the commit history shows exactly
 which commits fall where.**
+
+**Correction — post-window polish.** Three commits fall after the build window closed
+(2 August 2026, 23:59 Pacific): `7ad9a94`, `6d4b3fa` and `e8178a3`, made between 12:33 and
+13:16 IST on 3 August — minutes to under an hour past the deadline. They touch presentation
+and documentation only (`public/index.html`, `CLAUDE.md`, `.env.example`);
+`git diff submission..HEAD -- src/` is empty — no evaluator, enforcement or clause-type code
+changed after the window. The annotated tag **`submission`** marks `8c7e657`, the last
+in-window commit, so the submission-time state is one checkout away.
