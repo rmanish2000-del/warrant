@@ -5,119 +5,225 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Warrant — operator console (sandbox)</title>
 <style>
-  /* Built for a 1920×1008 recording: content 1440px, nothing under 15px. */
+  /* Built for the 1920×1008 recording AND a 360px phone: content 1440px max,
+     nothing under 15px on desktop / 14px on mobile, nothing overflowing the
+     viewport at any width in any state.
+     Identity: deep green · paper white · brass. Every colour is a token —
+     no hardcoded colour below this block. Provenance badge values are
+     tokenized but unchanged: their semantics are fixed by the recording. */
   :root {
-    --allow: #0a7d33; --escalate: #b45309; --deny: #b91c1c;
-    --ink: #16181d; --muted: #5b616e; --line: #d8dbe2; --panel: #ffffff; --bg: #f2f3f6;
+    /* brand */
+    --paper: #f5f3ec;
+    --panel: #fffefa;
+    --ink: #1f2a24;
+    --muted: #59645c;
+    --line: #ddd8c9;
+    --green: #1c4f3b;
+    --brass: #8c6420;
+    --brass-tint: #f6efe0;
+    --chip-bg: #e8e4d8;
+    --row-hover: #f1eee3;
+    --row-selected: #ebe7d8;
+    /* semantic verdicts — each pairs a colour with a tint surface; the three
+       states also differ by fill vs outline vs weight, not hue alone */
+    --allow: #1e6f40;
+    --allow-tint: #eef6ef;
+    --escalate: #92600f;
+    --escalate-tint: #fbf5e9;
+    --deny: #9c1f2e;
+    --deny-tint: #fbf1ee;
+    /* provenance badges (values unchanged from the recording) */
+    --live: #0a7d33;
+    --live-dot: #b6f7c9;
+    --replay: #1d4ed8;
+    --stub-a: #7c2d12;
+    --stub-b: #f59e0b;
+    /* stream/code */
+    --code-bg: #14181a;
+    --code-ink: #d9dfd9;
+    --code-dim: #7f897f;
+    --on-dark: #ffffff;
+    --shadow: 0 1px 2px rgba(31, 42, 36, 0.06);
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink);
-         font: 16px/1.45 system-ui, "Segoe UI", sans-serif; }
+  body { margin: 0; background: var(--paper); color: var(--ink);
+         font: 16px/1.5 system-ui, "Segoe UI", sans-serif; }
   main { max-width: 1440px; margin: 0 auto; padding: 16px 24px 64px; }
-  h2 { font-size: 19px; margin: 0 0 10px; }
-  section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
-            padding: 16px 20px; margin-top: 16px; }
-  button { font: 600 16px system-ui; padding: 9px 16px; border-radius: 8px;
-           border: 1px solid var(--line); background: #fff; cursor: pointer; }
-  button.primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+  /* Type scale: headings settle down; the decision verdict is the largest
+     thing on the page. */
+  h2 { font-size: 16px; font-weight: 700; letter-spacing: .04em; text-transform: none;
+       color: var(--green); margin: 0 0 12px; }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+            padding: 18px 22px; margin-top: 16px; box-shadow: var(--shadow); }
+  button { font: 600 16px system-ui; padding: 10px 18px; min-height: 44px; border-radius: 9px;
+           border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+           cursor: pointer; max-width: 100%; white-space: normal; }
+  button.primary { background: var(--green); color: var(--on-dark); border-color: var(--green); }
   button:disabled { opacity: .45; cursor: not-allowed; }
   textarea { width: 100%; font: 16px/1.5 system-ui; padding: 10px; border: 1px solid var(--line);
-             border-radius: 8px; resize: vertical; }
+             border-radius: 9px; resize: vertical; background: var(--panel); color: var(--ink); }
+  input { max-width: 100%; background: var(--panel); color: var(--ink); }
   .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   .muted { color: var(--muted); font-size: 15px; }
-  .mono { font-family: ui-monospace, Consolas, monospace; }
+  .mono { font-family: ui-monospace, Consolas, monospace; overflow-wrap: anywhere; }
 
   /* ---------- header ---------- */
   header { display: flex; align-items: center; gap: 14px; padding: 14px 0; flex-wrap: wrap; }
-  .wordmark { font-size: 24px; font-weight: 800; letter-spacing: .5px; }
+  .wordmark { font-size: 24px; font-weight: 800; letter-spacing: .5px; color: var(--green); }
   .pill { display: inline-flex; align-items: center; gap: 8px; border-radius: 999px;
           padding: 5px 14px; font-size: 15px; font-weight: 700; }
-  .pill.sandbox { background: #1d4ed8; color: #fff; }
+  .pill.sandbox { background: var(--brass); color: var(--on-dark); }
   /* The load-bearing badge: three states, no two alike at a glance. */
-  .pill.live { background: #0a7d33; color: #fff; }
-  .pill.live::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: #b6f7c9;
+  .pill.live { background: var(--live); color: var(--on-dark); }
+  .pill.live::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--live-dot);
                        animation: pulse 1.4s infinite; }
-  .pill.cache { background: #fff; color: #1d4ed8; border: 2px dashed #1d4ed8; }
-  .pill.stub { background: repeating-linear-gradient(45deg, #7c2d12, #7c2d12 12px, #f59e0b 12px, #f59e0b 24px);
-               color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.7); font-size: 16px; }
-  .pill.none { background: #e5e7eb; color: var(--muted); }
+  .pill.cache { background: var(--panel); color: var(--replay); border: 2px dashed var(--replay); }
+  .pill.stub { background: repeating-linear-gradient(45deg, var(--stub-a), var(--stub-a) 12px, var(--stub-b) 12px, var(--stub-b) 24px);
+               color: var(--on-dark); text-shadow: 0 1px 2px rgba(0,0,0,.7); font-size: 16px; }
+  .pill.none { background: var(--chip-bg); color: var(--muted); }
   @keyframes pulse { 50% { opacity: .3; } }
   .counters { margin-left: auto; text-align: right; font-size: 15px; color: var(--muted); }
 
-  /* ---------- THE DENY PANEL — the product. Whole block under 650px. ---------- */
-  .deny-panel { border: 3px solid var(--deny); border-radius: 12px; background: #fff5f5;
-                padding: 22px 26px; }
+  /* Public-demo banner — brass-tinted, quiet. */
+  .public-banner { border: 2px solid var(--brass); border-radius: 10px; padding: 10px 14px;
+                   font-size: 16px; background: var(--brass-tint); }
+  /* Public-mode explainer notes read as asides, not walls of text. */
+  #policy-note, #cache-note, #seed-note { border-left: 3px solid var(--brass); padding-left: 10px;
+                                          line-height: 1.5; }
+
+  /* ---------- THE DENY PANEL — the product. Final and calm, not an alarm:
+       generous space, a single heavy frame, evidence set like exhibits. ---------- */
+  .deny-panel { border: 3px solid var(--deny); border-radius: 14px; background: var(--deny-tint);
+                padding: 24px 28px; }
   .deny-head { display: flex; align-items: baseline; gap: 22px; flex-wrap: wrap; }
   .deny-verdict { font-size: 64px; font-weight: 900; color: var(--deny); letter-spacing: 1px; line-height: 1.05; }
-  .deny-clauseid { font-size: 64px; font-weight: 900; color: var(--ink); line-height: 1.05; }
-  .deny-proposal { font-size: 19px; color: var(--muted); margin-top: 2px; }
-  .deny-clausetext { font-size: 24px; font-weight: 600; margin: 12px 0 4px; }
-  .deny-evidence { font-size: 17px; color: var(--ink); margin: 6px 0 14px; }
+  .deny-clauseid { font-size: 64px; font-weight: 900; color: var(--ink); line-height: 1.05;
+                   font-family: ui-monospace, Consolas, monospace; }
+  .deny-proposal { font-size: 19px; color: var(--muted); margin-top: 2px; overflow-wrap: anywhere; }
+  .deny-clausetext { font-size: 24px; font-weight: 600; margin: 14px 0 4px; }
+  .deny-evidence { font-size: 17px; color: var(--ink); margin: 6px 0 16px; }
   .not-happened { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
-  .not-happened .cell { background: #fff; border: 2px solid var(--deny); border-radius: 10px;
-                        padding: 12px 14px; text-align: center; }
+  .not-happened .cell { background: var(--panel); border: 1px solid var(--deny); border-left: 4px solid var(--deny);
+                        border-radius: 10px; padding: 14px; text-align: center; box-shadow: var(--shadow); }
   .not-happened .big { font-size: 34px; font-weight: 800; font-variant-numeric: tabular-nums; }
   .not-happened .lbl { font-size: 15px; color: var(--muted); margin-top: 2px; }
   .not-happened .ok { color: var(--allow); font-weight: 700; font-size: 16px; }
 
-  /* ---------- other verdict panels (plainer, deliberately) ---------- */
-  .verdict-panel { border: 2px solid var(--line); border-radius: 12px; padding: 18px 22px; background: #fff; }
-  .verdict-panel.allow { border-color: var(--allow); }
-  .verdict-panel.escalate { border-color: var(--escalate); background: #fffaf3; }
+  /* ---------- other verdict panels (plainer, deliberately) ----------
+     ALLOW: thin solid frame on plain surface. ESCALATE: dashed frame on an
+     amber tint. DENY above: heavy solid frame on its own tint. Fill, outline
+     and weight separate the three — never hue alone. */
+  .verdict-panel { border-radius: 12px; padding: 18px 22px; background: var(--panel); }
+  .verdict-panel.allow { border: 2px solid var(--allow); background: var(--allow-tint); }
+  .verdict-panel.escalate { border: 2px dashed var(--escalate); background: var(--escalate-tint); }
   .verdict-big { font-size: 40px; font-weight: 800; }
   .verdict-big.allow { color: var(--allow); } .verdict-big.escalate { color: var(--escalate); }
 
-  .chip { padding: 3px 10px; border-radius: 6px; font-weight: 700; font-size: 15px; color: #fff; }
-  .chip.ALLOW { background: var(--allow); } .chip.ESCALATE { background: var(--escalate); }
-  .chip.DENY { background: var(--deny); }
+  .chip { padding: 3px 10px; border-radius: 6px; font-weight: 700; font-size: 15px; }
+  .chip.ALLOW { background: var(--allow); color: var(--on-dark); }
+  .chip.ESCALATE { background: var(--panel); color: var(--escalate); border: 2px dashed var(--escalate); }
+  .chip.DENY { background: var(--deny); color: var(--on-dark); font-weight: 800; }
 
   /* clauses: compact two-column rows — id beside text */
-  .clause { display: grid; grid-template-columns: 56px 1fr; gap: 10px; padding: 7px 4px;
+  .clause { display: grid; grid-template-columns: 52px 1fr; gap: 10px; padding: 8px 4px;
             border-bottom: 1px solid var(--line); font-size: 17px; align-items: baseline; }
   .clause:last-child { border-bottom: 0; }
-  .clause .cid { font-weight: 800; }
+  .clause .cid { font-weight: 800; font-family: ui-monospace, Consolas, monospace; color: var(--green); }
 
-  details { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; margin-top: 8px; }
-  details summary { cursor: pointer; font-size: 16px; }
-  fieldset { border: 1px solid var(--line); border-radius: 8px; margin-top: 8px; padding: 10px 14px; }
-  fieldset legend { font-weight: 700; font-size: 16px; padding: 0 6px; }
-  label.opt { display: block; font-size: 16px; margin: 6px 0; }
-  .sets { color: var(--muted); font-size: 15px; }
+  details { border: 1px solid var(--line); border-radius: 9px; padding: 8px 12px; margin-top: 8px; }
+  details summary { cursor: pointer; font-size: 16px; padding: 10px 0; min-height: 44px; }
+  fieldset { border: 1px solid var(--line); border-left: 4px solid var(--brass); border-radius: 9px;
+             margin-top: 8px; padding: 10px 14px; min-width: 0; }
+  fieldset legend { font-weight: 700; font-size: 16px; padding: 0 6px; white-space: normal; }
+  /* Radio rows: control stays top-aligned in its own column; long label text
+     wraps cleanly beside it; the machine-readable JSON breaks anywhere rather
+     than widening the page. */
+  label.opt { display: grid; grid-template-columns: 28px 1fr; align-items: start;
+              font-size: 16px; margin: 2px 0; padding: 8px 0; min-height: 44px; }
+  label.opt input[type="radio"] { width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--green); }
+  label.opt > strong:first-of-type { margin-right: 4px; }
+  .opt-text { min-width: 0; }
+  .sets { color: var(--muted); font-size: 15px; display: inline-block; max-width: 100%;
+          overflow-wrap: anywhere; }
 
+  /* Tables scroll inside their own container on narrow screens — the page
+     itself never widens. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
   table { width: 100%; border-collapse: collapse; font-size: 16px; }
+  .table-scroll table { min-width: 560px; }
+  .table-scroll th { white-space: nowrap; }
   th { text-align: left; font-size: 15px; color: var(--muted); border-bottom: 2px solid var(--line);
        padding: 6px 8px; }
-  td { padding: 8px; border-bottom: 1px solid var(--line); }
-  tr.selectable { cursor: pointer; } tr.selectable:hover { background: #eef1f6; }
-  tr.selected { background: #e8edf7; }
+  td { padding: 10px 8px; border-bottom: 1px solid var(--line); }
+  tr.selectable { cursor: pointer; } tr.selectable:hover { background: var(--row-hover); }
+  tr.selected { background: var(--row-selected); }
   .num { text-align: right; font-variant-numeric: tabular-nums; }
 
-  .stream { background: #101318; color: #d7dde8; border-radius: 8px; padding: 14px;
+  .stream { background: var(--code-bg); color: var(--code-ink); border-radius: 9px; padding: 14px;
             font: 15px/1.5 ui-monospace, Consolas, monospace; max-height: 300px; overflow-y: auto;
             white-space: pre-wrap; word-break: break-word; }
-  .stream .think { color: #7b8496; }
+  .stream .think { color: var(--code-dim); }
   .streaming-note { display: none; align-items: center; gap: 8px; color: var(--muted); font-size: 15px; }
   .streaming-note.on { display: inline-flex; }
   .streaming-note::before { content: ""; width: 10px; height: 10px; border-radius: 50%;
                             background: var(--allow); animation: pulse 1s infinite; }
   .hash { font-size: 15px; color: var(--muted); }
-  .banner-error { background: #fef2f2; border: 2px solid var(--deny); color: var(--deny);
-                  border-radius: 8px; padding: 10px 14px; font-weight: 600; margin-top: 10px; display: none; }
-  .payment { border: 1px dashed var(--line); border-radius: 8px; padding: 10px 14px; margin-top: 12px;
-             font-size: 16px; }
-  .open-approval { display: inline-block; background: var(--ink); color: #fff; font-weight: 800;
-                   font-size: 19px; padding: 14px 24px; border-radius: 10px; text-decoration: none; }
+  .banner-error { background: var(--deny-tint); border: 2px solid var(--deny); color: var(--deny);
+                  border-radius: 9px; padding: 10px 14px; font-weight: 600; margin-top: 10px; display: none; }
+  .payment { border: 1px dashed var(--line); border-radius: 9px; padding: 10px 14px; margin-top: 12px;
+             font-size: 16px; background: var(--panel); overflow-wrap: anywhere; }
+  .payment-confirmed { border: 2px solid var(--allow); border-radius: 10px; padding: 16px 20px;
+                       background: var(--allow-tint); font-size: 19px; overflow-wrap: anywhere; }
+  .open-approval { display: inline-block; background: var(--green); color: var(--on-dark); font-weight: 800;
+                   font-size: 19px; padding: 14px 24px; border-radius: 10px; text-decoration: none;
+                   max-width: 100%; }
   .open-approval:hover { opacity: .92; }
   .validity { font-size: 16px; }
   .hidden { display: none !important; }
+  a { color: var(--green); }
+
+  /* ---------- motion — restrained, transform/opacity only, ≤250ms ---------- */
+  @media (prefers-reduced-motion: no-preference) {
+    .clause { animation: rise-in 180ms ease-out both; }
+    .clause:nth-child(2) { animation-delay: 60ms; }
+    .clause:nth-child(3) { animation-delay: 120ms; }
+    .clause:nth-child(n+4) { animation-delay: 180ms; }
+    .verdict-panel { animation: rise-in 160ms ease-out both; }
+    /* DENY settles a beat slower than the others. Let it land. */
+    .deny-panel { animation: settle 250ms ease-out both; }
+  }
+  @keyframes rise-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  @keyframes settle  { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  /* ---------- narrow screens: nothing under 14px, nothing overflowing ---------- */
+  @media (max-width: 640px) {
+    main { padding: 10px 12px 48px; }
+    section { padding: 14px; }
+    header { gap: 8px; }
+    .counters { margin-left: 0; text-align: left; width: 100%; }
+    .deny-panel { padding: 16px; }
+    .deny-head { gap: 10px; }
+    .deny-verdict, .deny-clauseid { font-size: 42px; }
+    .deny-clausetext { font-size: 19px; }
+    .deny-evidence { font-size: 16px; }
+    .not-happened { grid-template-columns: 1fr; }
+    .verdict-big { font-size: 30px; }
+    .clause { grid-template-columns: 44px 1fr; font-size: 16px; }
+    .muted, .sets, th, .hash { font-size: 14px; }
+    .open-approval { font-size: 17px; padding: 14px 18px; }
+    .stream { font-size: 14px; }
+    /* Proposal buttons: one clean full-width row each, no ragged wrapping. */
+    #canned { display: grid; grid-template-columns: 1fr; gap: 8px; width: 100%; }
+    #canned button { width: 100%; text-align: left; }
+  }
 </style>
 </head>
 <body>
 <main>
   <div id="app-error" class="banner-error" style="margin-top:12px"></div>
-  <div id="public-banner" class="hidden" style="margin-top:12px; border:2px solid #1d4ed8; border-radius:8px; padding:10px 14px; font-size:16px; background:#eff6ff">
+  <div id="public-banner" class="public-banner hidden" style="margin-top:12px">
     Live sandbox demo — no real money moves. Payment attempts are rate limited.
-    <button id="btn-reset-demo" style="margin-left:12px; font-size:15px; padding:5px 10px">Start a fresh demo run</button>
+    <button id="btn-reset-demo" style="margin-left:12px; font-size:15px">Start a fresh demo run</button>
   </div>
   <header>
     <span class="wordmark">Warrant</span>
@@ -190,10 +296,12 @@
 
   <section id="feed-section" class="hidden">
     <h2>6 · Activity</h2>
-    <table>
-      <thead><tr><th>Time</th><th>Supplier</th><th class="num">Amount</th><th class="num">Prior authorized</th><th>Decision</th><th>Clause</th><th>Approval</th></tr></thead>
-      <tbody id="feed"></tbody>
-    </table>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Time</th><th>Supplier</th><th class="num">Amount</th><th class="num">Prior authorized</th><th>Decision</th><th>Clause</th><th>Approval</th></tr></thead>
+        <tbody id="feed"></tbody>
+      </table>
+    </div>
   </section>
 
   <section id="records-section" class="hidden">
@@ -202,10 +310,12 @@
       <div id="chain-status" class="muted" style="flex:1"></div>
       <a href="api/export" target="_blank" rel="noopener" style="font-size:16px; font-weight:600">Export JSON ↗</a>
     </div>
-    <table>
-      <thead><tr><th>Record</th><th>Kind</th><th>Summary</th><th>Hash</th></tr></thead>
-      <tbody id="records"></tbody>
-    </table>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Record</th><th>Kind</th><th>Summary</th><th>Hash</th></tr></thead>
+        <tbody id="records"></tbody>
+      </table>
+    </div>
   </section>
 </main>
 
@@ -311,7 +421,7 @@ function renderFlags() {
     const chosenKey = state.answers && state.answers[flag.id];
     const options = flag.options.map((o) =>
       `<label class="opt"><input type="radio" name="flag-${esc(flag.id)}" value="${esc(o.key)}" ${confirmed ? "disabled" : ""} ${chosenKey && o.key.toLowerCase() === chosenKey.toLowerCase() ? "checked" : ""}>
-        <strong>${esc(o.key)}</strong> — ${esc(o.label)} <span class="sets mono">${esc(JSON.stringify(o.sets))}</span></label>`).join("");
+        <span class="opt-text"><strong>${esc(o.key)}</strong> — ${esc(o.label)} <span class="sets mono">${esc(JSON.stringify(o.sets))}</span></span></label>`).join("");
     const head = `${esc(flag.clauses.join("/"))} · flagged by ${esc(flag.detectedBy)}`;
     if (isPrimaryFlag(flag)) {
       return `<fieldset><legend>${head} — ${esc(flag.question)}</legend>${options}</fieldset>`;
@@ -398,7 +508,7 @@ function renderDetail() {
   $("detail").innerHTML = `<div class="verdict-panel ${cls}">
     <div class="row">
       <span class="verdict-big ${cls}">${d.decision === "ALLOW" ? "ALLOWED" : "ESCALATED"}</span>
-      ${d.clause ? `<span class="verdict-big">${esc(d.clause)}</span>` : ""}
+      ${d.clause ? `<span class="verdict-big mono">${esc(d.clause)}</span>` : ""}
       <span class="muted" style="font-size:18px">${esc(d.supplier)} · ${rupees(d.amount)}</span>
     </div>
     ${d.clauseText ? `<div style="font-size:19px; margin-top:6px">“${esc(d.clauseText)}”</div>` : `<div class="muted" style="margin-top:6px">No clause breached.</div>`}
@@ -431,7 +541,7 @@ function renderRecords() {
     : `CHAIN VERIFICATION FAILED at record ${state.chain.atIndex}`;
   $("records").innerHTML = state.records.map((r) =>
     `<tr><td class="mono">${esc(r.id)}</td><td>${esc(r.kind)}</td><td>${esc(r.summary)}</td>
-     <td class="hash mono" title="${esc(r.recordHash)}">${esc(r.recordHash.slice(0, 16))}…</td></tr>`).join("");
+     <td class="hash mono" title="${esc(r.recordHash)}">${esc(r.recordHash.slice(0, 8))}…${esc(r.recordHash.slice(-6))}</td></tr>`).join("");
 }
 
 /**
@@ -517,7 +627,7 @@ function updateDock() {
   holder.dataset.sessionRef = "";
   if (p.status === "confirmed") {
     label.textContent = "";
-    holder.innerHTML = `<div style="border:2px solid var(--allow);border-radius:10px;padding:16px 20px;background:#f2fbf5;font-size:19px">
+    holder.innerHTML = `<div class="payment-confirmed">
       <span class="mono">visa_confirmation:</span> <strong style="font-size:24px">“${esc(p.visaConfirmation || "")}”</strong>
       <div class="muted" style="margin-top:6px">The provider's word, from their own confirmation call ·
       session <span class="mono">${esc(p.sessionRef || "")}</span> · ${esc(d.supplier)} · ${rupees(d.amount)}</div>
