@@ -298,6 +298,13 @@ stop on it.
 
 - All application code in this repository is written inside the official build window: **31 July –
   2 August 2026 Pacific** (1–3 August IST). The commit history is the evidence.
+- **Correction — post-window polish.** Three commits fall after the build window closed
+  (2 August 2026, 23:59 Pacific): `7ad9a94`, `6d4b3fa` and `e8178a3`, made between 12:33 and
+  13:16 IST on 3 August — minutes to under an hour past the deadline. They touch presentation
+  and documentation only (`public/index.html`, `CLAUDE.md`, `.env.example`);
+  `git diff submission..HEAD -- src/` is empty — no evaluator, enforcement or clause-type code
+  changed after the window. The annotated tag `submission` marks `8c7e657`, the last in-window
+  commit, so the submission-time state is one checkout away.
 - A sibling directory `warrant-rehearsal` contains a pre-window rehearsal implementation. **Do not
   read it, copy from it, or take design cues from it at any point.** Its existence is disclosed in
   `README.md`; no code from it is in this repository.
