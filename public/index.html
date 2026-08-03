@@ -185,6 +185,25 @@
   /* Orientation lines — one short sentence under each heading. */
   .orient { margin: -6px 0 12px; color: var(--muted); font-size: 15px; }
 
+  /* ---------- the stepper: 1–7, ticks as steps complete, every width ---------- */
+  #stepper { position: sticky; top: 0; z-index: 40; background: var(--paper);
+             display: flex; gap: 8px; padding: 10px 0; margin: 0 -2px;
+             overflow-x: auto; -webkit-overflow-scrolling: touch;
+             border-bottom: 1px solid var(--line); }
+  .step { display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto;
+          min-height: 44px; padding: 6px 14px; border-radius: 999px;
+          border: 1px solid var(--line); background: var(--panel);
+          font: 600 15px system-ui; color: var(--muted); cursor: pointer; }
+  .step .n { display: inline-flex; align-items: center; justify-content: center;
+             width: 24px; height: 24px; border-radius: 50%;
+             background: var(--chip-bg); color: var(--muted);
+             font-size: 14px; font-weight: 800; }
+  .step.done { border-color: var(--allow); color: var(--allow); background: var(--allow-tint); }
+  .step.done .n { background: var(--allow); color: var(--on-dark); }
+  .step.current { border-color: var(--green); color: var(--on-dark); background: var(--green); }
+  .step.current .n { background: var(--on-dark); color: var(--green); }
+  .step.locked { opacity: .6; }
+
   /* Journey stages (classes applied by render()) — EVERY width, founder
      decision: locked = not yet reachable (muted stub) · current = where the
      user is · done = completed (collapses to its heading; tap to reopen).
@@ -257,6 +276,11 @@
     #canned { display: grid; grid-template-columns: 1fr; gap: 8px; width: 100%; }
     #canned button { width: 100%; text-align: left; }
 
+    /* Stepper: number-only chips so all seven fit a 360px screen. */
+    #stepper { gap: 6px; padding: 8px 0; }
+    .step { padding: 6px 9px; gap: 0; }
+    .step .lbl { display: none; }
+
     /* The single next action becomes a full-width bottom bar on phones. */
     #next-bar:not(.hidden) { left: 0; right: 0; bottom: 0; min-width: 0; max-width: none;
       border: 0; border-top: 1px solid var(--line); border-radius: 0;
@@ -272,6 +296,9 @@
     Live sandbox demo — no real money moves. Payment attempts are rate limited.
     <button id="btn-reset-demo" style="margin-left:12px; font-size:15px">Start a fresh demo run</button>
   </div>
+  <!-- The journey, numbered: 1–7, ticks as steps complete, tap to jump.
+       Derived entirely from existing state — presentation only. -->
+  <nav id="stepper" aria-label="Progress"></nav>
   <header>
     <span class="wordmark">Warrant</span>
     <span class="pill sandbox">SANDBOX</span>
@@ -752,6 +779,7 @@ function render() {
   $("btn-seed").disabled = state.records.length > 0;
   if (active) { renderFeed(); renderRecords(); renderDetail(); }
   updateDock();
+  renderStepper();
   updateNextBar();
 }
 
@@ -759,6 +787,26 @@ function applyStage(id, stage) {
   const el = $(id);
   el.classList.remove("stage-locked", "stage-current", "stage-done", "stage-idle", "hidden");
   el.classList.add(`stage-${stage}`);
+}
+
+/** The 1–7 journey, derived from existing state. Ticks are earned, never decorative. */
+function renderStepper() {
+  const draft = !!state.draft;
+  const warrant = !!state.warrant;
+  const seeded = state.records.length > 0;
+  const userProposals = warrant && seeded ? state.decisions.length - 2 : 0;
+  const steps = [
+    ["policy-section", "Policy", draft ? "done" : "current"],
+    ["draft-section", "Clauses", !draft ? "locked" : warrant ? "done" : "current"],
+    ["warrant-section", "Warrant", !warrant ? "locked" : seeded ? "done" : "current"],
+    ["proposals-section", "Proposals", !seeded ? "locked" : userProposals > 0 ? "done" : "current"],
+    ["detail-section", "Decision", userProposals > 0 ? "done" : "locked"],
+    ["feed-section", "Activity", state.decisions.length > 0 ? "done" : "locked"],
+    ["records-section", "Record", state.records.length > 0 ? "done" : "locked"],
+  ];
+  $("stepper").innerHTML = steps.map(([target, label, st], i) =>
+    `<span class="step ${st}" data-target="${target}" data-state="${st}" role="link" title="${esc(label)}">
+      <span class="n">${st === "done" ? "✓" : i + 1}</span><span class="lbl">${esc(label)}</span></span>`).join("");
 }
 
 function setState(next) { state = next; lastStateJson = JSON.stringify(next); render(); }
@@ -843,6 +891,18 @@ $("next-btn").addEventListener("click", () => { currentNext?.run(); });
 // The answered-count updates live as radios are chosen (delegated — the
 // flag markup is re-rendered, the container is not).
 $("flags").addEventListener("change", updateNextBar);
+// Stepper taps jump to the step's section (locked steps have nowhere to go).
+$("stepper").addEventListener("click", (event) => {
+  const chip = event.target.closest(".step");
+  if (!chip || chip.dataset.state === "locked") return;
+  const section = $(chip.dataset.target);
+  if (section.classList.contains("hidden")) return;
+  if (section.classList.contains("stage-done") || section.classList.contains("stage-idle")) {
+    section.classList.add("user-open"); // opening a collapsed step is the point of tapping it
+  }
+  scrollWithFallback(section, "start");
+});
+
 // Tap a completed (or waiting) section's heading to reopen it — every width.
 document.querySelectorAll("section.journey > h2").forEach((h) => {
   h.addEventListener("click", () => {
