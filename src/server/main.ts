@@ -85,6 +85,9 @@ if (noPay) {
     secretKey,
     userEmail: sandboxUserEmail,
     cardId: process.env['PRAVA_CARD_ID'] ?? null,
+    // Public deploys set this to the console's own HTTPS URL so the
+    // provider's page returns the visitor to Warrant after completion.
+    callbackUrl: process.env['WARRANT_CALLBACK_URL'] ?? null,
   });
   try {
     const cardId = process.env['PRAVA_CARD_ID'] ?? (await prava.discoverDefaultCardId());

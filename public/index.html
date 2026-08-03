@@ -459,14 +459,24 @@ const CANNED = [
 ];
 
 /* Camera-safe wording — no raw states on screen. */
+/* Camera-safe wording, with attribution: each failure names whose side it
+   happened on. Warrant's decision layer never fails a payment — a failed leg
+   is the provider/network side, and the record is complete either way. */
 const PAYMENT_WORDS = {
   requested: "Session requested — contacting the payment provider",
   awaiting_verification: "Awaiting verification — open the provider's page from the sandbox panel below; their clock has been running since the session was created",
   confirmed: "Confirmed by the provider — see the sandbox panel",
-  declined: "Provider closed the session without issuing a credential — the authorization record is unaffected",
-  unavailable: "Provider unavailable — the decision and its record are unaffected",
-  lapsed: "Session lapsed — the provider's window closed; the authorization record is unaffected",
+  declined: "Provider closed the session without issuing a credential — their side, after verification; not Warrant's decision layer. The authorization record is unaffected",
+  unavailable: "Warrant couldn't reach the provider — a network failure on our side of the call, not a decision. The decision and its record are unaffected",
+  lapsed: "Session lapsed — the provider's window closed before the passkey; nothing failed on Warrant's side. The authorization record is unaffected",
 };
+/* On 'declined', append the provider's own reason, verbatim — their words. */
+function paymentWords(p) {
+  const base = PAYMENT_WORDS[p.status] || "";
+  return p.status === "declined" && p.providerError
+    ? `${base} · their reason, verbatim: “${p.providerError}”`
+    : base;
+}
 
 async function api(path, body) {
   const res = await fetch(path, {
@@ -593,7 +603,7 @@ function renderPayment(d) {
     if (state.paymentLeg && state.paymentLeg.startsWith("attached")) return "";
     return `<div class="payment">Payment leg ${esc(state.paymentLeg || "not configured")} — the authorization and its record are complete without it.</div>`;
   }
-  const words = PAYMENT_WORDS[d.payment.status] || "";
+  const words = paymentWords(d.payment);
   const ref = d.payment.sessionRef ? ` · session ref <span class="mono">${esc(d.payment.sessionRef)}</span>` : "";
   return `<div class="payment">${esc(words)}${ref}</div>`;
 }
@@ -753,7 +763,7 @@ function updateDock() {
     </div>`;
   } else {
     label.textContent = "";
-    holder.innerHTML = `<div class="payment">${esc(PAYMENT_WORDS[p.status] || "")}${p.sessionRef ? ` · session <span class="mono">${esc(p.sessionRef)}</span>` : ""}</div>`;
+    holder.innerHTML = `<div class="payment">${esc(paymentWords(p))}${p.sessionRef ? ` · session <span class="mono">${esc(p.sessionRef)}</span>` : ""}</div>`;
   }
 }
 

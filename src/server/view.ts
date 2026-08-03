@@ -38,6 +38,8 @@ export interface DecisionViewModel {
     readonly iframeUrl: string | null;
     readonly expiresAtIso: string | null;
     readonly visaConfirmation: string | null;
+    /** The provider's own failure text on 'declined' — attribution, their words. */
+    readonly providerError: string | null;
   } | null;
   readonly outboundCalls: number;
   /** Per-decision — the DENY panel's number. 0 for every non-executed decision even while another leg polls. */
@@ -110,6 +112,7 @@ export function stateView(
             iframeUrl: payment.iframeUrl,
             expiresAtIso: payment.expiresAtIso,
             visaConfirmation: payment.visaConfirmation,
+            providerError: payment.providerError,
           }
         : null,
       outboundCalls: flow.outboundCallsFor(record.id),

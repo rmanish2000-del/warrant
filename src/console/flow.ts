@@ -84,6 +84,12 @@ export interface PaymentView {
     | 'declined'
     | 'unavailable'
     | 'lapsed';
+  /**
+   * On 'declined' only: the provider's own failure text, verbatim — their
+   * words, so the console can attribute the failure to the right side
+   * (provider/Visa, never Warrant's decision layer). Null everywhere else.
+   */
+  readonly providerError: string | null;
   readonly sessionRef: string | null;
   /** Deliberate exception to the no-URL rule: the anchor href for the human's passkey step (new tab, one load). */
   readonly iframeUrl: string | null;
@@ -241,7 +247,7 @@ export class ConsoleFlow {
     const decision = this.log.records.find(
       (r): r is DecisionRecord => r.kind === 'decision' && r.id === decisionId,
     )!;
-    const none = { sessionRef: null, iframeUrl: null, expiresAtIso: null, visaConfirmation: null };
+    const none = { sessionRef: null, iframeUrl: null, expiresAtIso: null, visaConfirmation: null, providerError: null };
     this.#bumpOutbound(decisionId);
     this.#setPayment(decisionId, { status: 'requested', ...none });
     let session: CreatedSession;
@@ -269,6 +275,7 @@ export class ConsoleFlow {
       iframeUrl: session.iframeUrl,
       expiresAtIso: session.expiresAtIso,
       visaConfirmation: null,
+      providerError: null,
     });
     try {
       await this.#watchSession(decisionId, session);
@@ -279,6 +286,7 @@ export class ConsoleFlow {
         iframeUrl: null,
         expiresAtIso: session.expiresAtIso,
         visaConfirmation: null,
+        providerError: null,
       });
     }
   }
@@ -309,6 +317,7 @@ export class ConsoleFlow {
           iframeUrl: null,
           expiresAtIso: session.expiresAtIso,
           visaConfirmation: null,
+          providerError: outcome.message,
         });
         return;
       }
@@ -326,6 +335,7 @@ export class ConsoleFlow {
         iframeUrl: null,
         expiresAtIso: session.expiresAtIso,
         visaConfirmation: report.visaConfirmation,
+        providerError: null,
       });
       return;
     }
@@ -335,6 +345,7 @@ export class ConsoleFlow {
       iframeUrl: null,
       expiresAtIso: session.expiresAtIso,
       visaConfirmation: null,
+      providerError: null,
     });
   }
 

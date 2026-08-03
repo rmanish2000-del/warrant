@@ -234,11 +234,41 @@ describe('screen safety — provider extras are structurally unreachable', () =>
       iframeUrl: null,
       expiresAtIso: FAR_EXPIRY,
       visaConfirmation: 'SUCCESS',
+      providerError: null,
     });
     const everything = JSON.stringify({ payment, records: flow.log.records });
     assert.ok(!everything.includes('tok-should-never-appear'));
     assert.ok(!everything.includes('credential-should-never-appear'));
     assert.ok(!everything.includes('dynamic_cvv'));
+  });
+});
+
+describe('provider-side failure — attributed in the provider\'s own words', () => {
+  it('a failed poll marks the leg declined and carries the provider message verbatim', async () => {
+    const failing: ProviderPort = {
+      async createSession() {
+        return { sessionRef: 'sess-f', iframeUrl: 'https://sandbox.collect.example/x', expiresAtIso: FAR_EXPIRY };
+      },
+      async pollResult() {
+        return { kind: 'failed', message: 'Visa sandbox declined to issue the credential' };
+      },
+      async reportApproved() {
+        throw new Error('must never be called for a failed session');
+      },
+    };
+    const flow = new ConsoleFlow({ provider: failing, clock: makeClock(), sleep: async () => {}, pollIntervalMs: 1 });
+    flow.adoptDraft({ source: 'stub', draft: stubDraft(), reason: 'test' }, 'stub');
+    flow.confirmWarrant(canonicalAnswersFor(stubDraft()));
+    const s1 = flow.propose('PackRight Supplies', 2_500);
+    flow.approve(s1.id, 'approved');
+    await settle();
+
+    const payment = flow.paymentFor(s1.id);
+    assert.equal(payment?.status, 'declined');
+    assert.equal(payment?.providerError, 'Visa sandbox declined to issue the credential');
+    // no credential, no session result — the chain records the decision and approval only
+    assert.ok(!flow.log.records.some((r) => r.kind === 'session_result'));
+    assert.deepEqual(flow.log.verify(), { ok: true });
   });
 });
 

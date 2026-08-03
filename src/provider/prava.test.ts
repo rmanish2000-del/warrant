@@ -70,6 +70,23 @@ describe('createSession', () => {
     assert.ok(!('card' in (requests[0]!.body as Record<string, unknown>)));
   });
 
+  it('sends callback_url only when configured, so the provider page can return to Warrant', async () => {
+    const { impl, requests } = fakeFetch([{ status: 201, body: CREATED }]);
+    const withCallback = new PravaSandboxProvider({
+      secretKey: 'unit-test-secret',
+      userEmail: 'unit-test-user',
+      cardId: null,
+      callbackUrl: 'https://demo.example/warrant/console',
+      fetchImpl: impl,
+    });
+    await withCallback.createSession({ supplier: 'X', amount: 10, currency: 'INR', description: 'd' });
+    assert.equal((requests[0]!.body as Record<string, unknown>)['callback_url'], 'https://demo.example/warrant/console');
+
+    const { impl: impl2, requests: requests2 } = fakeFetch([{ status: 201, body: CREATED }]);
+    await provider(impl2, null).createSession({ supplier: 'X', amount: 10, currency: 'INR', description: 'd' });
+    assert.ok(!('callback_url' in (requests2[0]!.body as Record<string, unknown>)));
+  });
+
   it('surfaces the provider error message and code on non-2xx, never the key', async () => {
     const { impl } = fakeFetch([
       { status: 400, body: { error: { code: 'VAL_2001', message: 'Invalid request body' } } },

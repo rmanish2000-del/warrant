@@ -48,6 +48,12 @@ export interface PravaConfig {
   /** The email the sandbox account (and its enrolled card) is tied to. From PRAVA_USER_EMAIL — never hardcoded. */
   readonly userEmail: string;
   readonly countryCodeIso2?: string;
+  /**
+   * HTTPS URL the provider's page redirects to after completion, so the
+   * visitor lands back on Warrant instead of a dead provider tab. Optional:
+   * localhost isn't HTTPS, so local runs simply omit it.
+   */
+  readonly callbackUrl?: string | null;
   /** Injectable for tests. Defaults to global fetch. */
   readonly fetchImpl?: typeof fetch;
   readonly baseUrl?: string;
@@ -63,6 +69,7 @@ const isRecord = (v: unknown): v is Record<string, unknown> =>
 export class PravaSandboxProvider implements ProviderPort {
   readonly #config: Required<Pick<PravaConfig, 'secretKey' | 'userId' | 'userEmail' | 'countryCodeIso2' | 'baseUrl'>> & {
     cardId: string | null;
+    callbackUrl: string | null;
     fetchImpl: typeof fetch;
   };
 
@@ -75,6 +82,7 @@ export class PravaSandboxProvider implements ProviderPort {
       userId: config.userId ?? 'test_user_1',
       userEmail: config.userEmail,
       countryCodeIso2: config.countryCodeIso2 ?? 'IN',
+      callbackUrl: config.callbackUrl ?? null,
       fetchImpl: config.fetchImpl ?? fetch,
       baseUrl: config.baseUrl ?? PRAVA_SANDBOX_BASE_URL,
     };
@@ -118,6 +126,7 @@ export class PravaSandboxProvider implements ProviderPort {
         currency: args.currency,
         description: args.description,
         ...(this.#config.cardId ? { card: { card_id: this.#config.cardId } } : {}),
+        ...(this.#config.callbackUrl ? { callback_url: this.#config.callbackUrl } : {}),
         purchase_context: [
           {
             merchant_details: {
@@ -197,6 +206,7 @@ export class PravaSandboxProvider implements ProviderPort {
       userId: this.#config.userId,
       userEmail: this.#config.userEmail, // required, carried through
       countryCodeIso2: this.#config.countryCodeIso2,
+      callbackUrl: this.#config.callbackUrl,
       fetchImpl: this.#config.fetchImpl,
       baseUrl: this.#config.baseUrl,
     });
