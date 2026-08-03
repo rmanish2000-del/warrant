@@ -449,6 +449,14 @@ const rupees = (n) => "₹" + Number(n).toLocaleString("en-IN");
 let state = null;
 let lastStateJson = "";
 let selectedDecision = null;
+/**
+ * The provider's callback lands here with ?returned=1 (the deployment sets
+ * WARRANT_CALLBACK_URL to this page with that query). A returning visitor
+ * must land ON the payment outcome — the sandbox panel with the confirmed
+ * credential card, or the failure attribution — not at the top of the page.
+ * One scroll, first render that has payment state, then never again.
+ */
+let returnedFromProvider = new URLSearchParams(location.search).has("returned");
 let streamingNow = false;   // provenance guard: green badge only for a compile streamed in this session
 let sawLiveStream = false;
 
@@ -696,6 +704,11 @@ function updateDock() {
   const d = withPayment[withPayment.length - 1];
   const p = d.payment;
   dock.classList.remove("hidden");
+  // Back from the provider's page: land the visitor on the outcome itself.
+  if (returnedFromProvider) {
+    returnedFromProvider = false;
+    scrollWithFallback(dock, "start");
+  }
 
   if (p.status === "awaiting_verification" && p.iframeUrl) {
     label.innerHTML = `Provider session <span class="mono">${esc(p.sessionRef)}</span> ·
