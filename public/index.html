@@ -208,6 +208,7 @@
 
 <script type="module">
 import { createOpenGate, createScrollGate } from "./dockScroll.mjs";
+import { parseApiResponse, SERVER_UNAVAILABLE_SENTENCE } from "./apiClient.mjs";
 const scrollGate = createScrollGate();
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
@@ -243,9 +244,15 @@ async function api(path, body) {
     headers: { "content-type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || res.statusText);
-  return data;
+  // Never res.json() blind: a proxy can answer for a restarting server with a
+  // text page, and a parser message must never reach the screen.
+  const parsed = parseApiResponse({
+    ok: res.ok,
+    contentType: res.headers.get("content-type"),
+    bodyText: await res.text(),
+  });
+  if (parsed.kind === "error") throw new Error(parsed.message);
+  return parsed.data;
 }
 
 async function refresh(force) {
@@ -593,6 +600,13 @@ $("btn-compile").addEventListener("click", async () => {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ mode: "fresh", policy }),
     });
+    // The stream is NDJSON; anything else (a JSON error, a proxy text page)
+    // must surface as plain words, never reach the line parser below.
+    const streamType = res.headers.get("content-type") || "";
+    if (!res.ok || !streamType.includes("application/x-ndjson")) {
+      const parsed = parseApiResponse({ ok: res.ok, contentType: streamType, bodyText: await res.text() });
+      throw new Error(parsed.kind === "error" ? parsed.message : SERVER_UNAVAILABLE_SENTENCE);
+    }
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
@@ -604,7 +618,8 @@ $("btn-compile").addEventListener("click", async () => {
       buffer = lines.pop();
       for (const lineText of lines) {
         if (!lineText.trim()) continue;
-        const msg = JSON.parse(lineText);
+        let msg;
+        try { msg = JSON.parse(lineText); } catch { continue; } // a garbled line is dropped, never parsed at the reader
         if (msg.kind === "thinking") {
           streamEl.insertAdjacentHTML("beforeend", `<span class="think">${esc(msg.chunk)}</span>`);
         } else if (msg.kind === "text") {

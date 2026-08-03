@@ -14,7 +14,7 @@
     "demo:nopay": "node --experimental-strip-types --env-file-if-exists=.env src/server/main.ts --skip-payment --freeze-clock",
     "prava:probe": "node --experimental-strip-types --env-file-if-exists=.env src/cli/prava-probe.ts",
     "gonogo": "node --experimental-strip-types --env-file-if-exists=.env src/cli/gonogo.ts",
-    "test": "node --experimental-strip-types --test src/engine/evaluate.test.ts src/compiler/validityGuard.test.ts src/compiler/schema.test.ts src/compiler/confirm.test.ts src/compiler/compile.test.ts src/records/records.test.ts src/records/append.test.ts src/console/flow.test.ts src/console/dockScroll.test.ts src/provider/prava.test.ts src/server/view.test.ts src/server/tenancy.test.ts",
+    "test": "node --experimental-strip-types --test src/engine/evaluate.test.ts src/compiler/validityGuard.test.ts src/compiler/schema.test.ts src/compiler/confirm.test.ts src/compiler/compile.test.ts src/records/records.test.ts src/records/append.test.ts src/console/flow.test.ts src/console/dockScroll.test.ts src/provider/prava.test.ts src/server/view.test.ts src/server/tenancy.test.ts src/console/apiClient.test.ts",
     "typecheck": "tsc --noEmit",
     "demo:fresh": "node --experimental-strip-types --env-file-if-exists=.env src/cli/compile.ts fresh",
     "demo:reset": "node --experimental-strip-types src/cli/compile.ts reset"
