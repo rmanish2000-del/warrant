@@ -110,6 +110,10 @@ Decided so far:
   resets. **The public demo requires one persistent Node process** — tenancy and payment watchers
   are in-memory; serverless recycling would corrupt a judge's run mid-click. Do not deploy it to
   a serverless platform.
+- **Guided journey at EVERY width — founder decision, post-submission.** The next-action bar,
+  staged section disclosure (locked stub · current · done-collapsed), and decision auto-scroll
+  apply on desktop too, not only mobile. The submitted demo video shows the earlier static
+  desktop; that divergence is accepted and deliberate. Do not re-gate these to mobile.
 - **Counter scopes are deliberate — do not "clean up" the pair into one counter.** The DENY
   panel's cells are per-decision (`credentialRequestsFor()`, `outboundCallsFor()`) or
   snapshot-vs-now (sessions cell), because the panel's claim is about THIS refusal. The header
