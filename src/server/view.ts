@@ -43,9 +43,27 @@ export interface DecisionViewModel {
   /** Per-decision — the DENY panel's number. 0 for every non-executed decision even while another leg polls. */
   readonly credentialRequests: number;
   readonly sessionsAtDecision: number;
+  /**
+   * One plain sentence shown in the payment slot when the public demo's rate
+   * limiter declined to start a session for this approval. The decision and
+   * its record are complete; only the sandbox leg was withheld.
+   */
+  readonly paymentNotice: string | null;
 }
 
-export function stateView(flow: ConsoleFlow, cacheAvailable: boolean, paymentLeg: string) {
+export interface StateViewOptions {
+  /** Public deployment: compile disabled, banner shown, reset offered. */
+  readonly publicDemo?: boolean;
+  /** Rate-limit sentence per decision id, if any. */
+  readonly noticeFor?: (decisionId: string) => string | null;
+}
+
+export function stateView(
+  flow: ConsoleFlow,
+  cacheAvailable: boolean,
+  paymentLeg: string,
+  options: StateViewOptions = {},
+) {
   const draft = flow.draft;
   const warrant = flow.warrant;
   const ledger = flow.log.ledger();
@@ -97,6 +115,7 @@ export function stateView(flow: ConsoleFlow, cacheAvailable: boolean, paymentLeg
       outboundCalls: flow.outboundCallsFor(record.id),
       credentialRequests: flow.credentialRequestsFor(record.id),
       sessionsAtDecision: flow.sessionsAtDecision(record.id),
+      paymentNotice: options.noticeFor?.(record.id) ?? null,
     };
   });
 
@@ -106,6 +125,8 @@ export function stateView(flow: ConsoleFlow, cacheAvailable: boolean, paymentLeg
     cacheAvailable,
     /** 'attached (Prava sandbox)' · 'off (--nopay)' · 'not configured'. Never a key. */
     paymentLeg,
+    /** True only on the public deployment: live compile off, banner on. */
+    publicDemo: options.publicDemo === true,
     compile: {
       provenance: flow.provenance,
       model: flow.compileMeta.model ?? null,

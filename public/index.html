@@ -115,6 +115,10 @@
 <body>
 <main>
   <div id="app-error" class="banner-error" style="margin-top:12px"></div>
+  <div id="public-banner" class="hidden" style="margin-top:12px; border:2px solid #1d4ed8; border-radius:8px; padding:10px 14px; font-size:16px; background:#eff6ff">
+    Live sandbox demo — no real money moves. Payment attempts are rate limited.
+    <button id="btn-reset-demo" style="margin-left:12px; font-size:15px; padding:5px 10px">Start a fresh demo run</button>
+  </div>
   <header>
     <span class="wordmark">Warrant</span>
     <span class="pill sandbox">SANDBOX</span>
@@ -190,7 +194,7 @@
     <h2>7 · Authorization record — append-only, hash-chained (tamper-evident)</h2>
     <div class="row" style="margin-bottom:8px">
       <div id="chain-status" class="muted" style="flex:1"></div>
-      <a href="/api/export" target="_blank" rel="noopener" style="font-size:16px; font-weight:600">Export JSON ↗</a>
+      <a href="api/export" target="_blank" rel="noopener" style="font-size:16px; font-weight:600">Export JSON ↗</a>
     </div>
     <table>
       <thead><tr><th>Record</th><th>Kind</th><th>Summary</th><th>Hash</th></tr></thead>
@@ -243,7 +247,7 @@ async function api(path, body) {
 
 async function refresh(force) {
   try {
-    const next = await api("/api/state");
+    const next = await api("api/state");
     const json = JSON.stringify(next);
     // Skip identical re-renders: a poll must never wipe radios the operator
     // is in the middle of choosing.
@@ -342,6 +346,9 @@ function renderPayment(d) {
     return `<div class="payment">No payment session — the escalation was rejected. Nothing to cancel, nothing to reverse.</div>`;
   }
   if (d.approval && d.approval.outcome === "pending") return "";
+  if (d.paymentNotice) {
+    return `<div class="payment">${esc(d.paymentNotice)}</div>`;
+  }
   if (!d.payment) {
     if (state.paymentLeg && state.paymentLeg.startsWith("attached")) return "";
     return `<div class="payment">Payment leg ${esc(state.paymentLeg || "not configured")} — the authorization and its record are complete without it.</div>`;
@@ -511,6 +518,9 @@ function updateDock() {
 function render() {
   if (!state) return;
   badge();
+  $("public-banner").classList.toggle("hidden", !state.publicDemo);
+  $("btn-compile").classList.toggle("hidden", !!state.publicDemo);
+  $("policy").readOnly = !!state.publicDemo;
   $("btn-cache").classList.toggle("hidden", !state.cacheAvailable || !!state.draft);
   $("c-sessions").textContent = state.counters.paymentSessions;
   $("c-creds").textContent = state.counters.credentialRequests;
@@ -554,9 +564,16 @@ function showError(message) {
 }
 window.selectDecision = (id) => { selectedDecision = id; render(); };
 window.decide = async (id, outcome) => {
-  try { setState(await api("/api/approve", { decisionId: id, outcome })); }
+  try { setState(await api("api/approve", { decisionId: id, outcome })); }
   catch (e) { showError(e.message); }
 };
+
+$("btn-reset-demo").addEventListener("click", async () => {
+  try {
+    selectedDecision = null;
+    setState(await api("api/reset-demo", {}));
+  } catch (e) { showError(e.message); }
+});
 
 $("btn-compile").addEventListener("click", async () => {
   const policy = $("policy").value;
@@ -568,7 +585,7 @@ $("btn-compile").addEventListener("click", async () => {
   $("compile-note").classList.add("on");
   streamingNow = true;
   try {
-    const res = await fetch("/api/compile", {
+    const res = await fetch("api/compile", {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ mode: "fresh", policy }),
     });
@@ -611,7 +628,7 @@ $("btn-compile").addEventListener("click", async () => {
 });
 
 $("btn-cache").addEventListener("click", async () => {
-  try { sawLiveStream = false; setState(await api("/api/compile", { mode: "cache" })); }
+  try { sawLiveStream = false; setState(await api("api/compile", { mode: "cache" })); }
   catch (e) { showError(e.message); }
 });
 
@@ -621,7 +638,7 @@ $("btn-confirm").addEventListener("click", async () => {
     const chosen = document.querySelector(`input[name="flag-${flag.id}"]:checked`);
     if (chosen) answers[flag.id] = chosen.value;
   }
-  try { setState(await api("/api/confirm", { answers })); }
+  try { setState(await api("api/confirm", { answers })); }
   catch (e) {
     $("confirm-note").textContent = e.message;
     $("confirm-note").style.color = "var(--deny)";
@@ -629,7 +646,7 @@ $("btn-confirm").addEventListener("click", async () => {
 });
 
 $("btn-seed").addEventListener("click", async () => {
-  try { setState(await api("/api/seed", {})); } catch (e) { showError(e.message); }
+  try { setState(await api("api/seed", {})); } catch (e) { showError(e.message); }
 });
 
 for (const c of CANNED) {
@@ -641,7 +658,7 @@ for (const c of CANNED) {
 
 async function propose(supplier, amount) {
   try {
-    const data = await api("/api/propose", { supplier, amount });
+    const data = await api("api/propose", { supplier, amount });
     selectedDecision = data.decisionId;
     setState(data.state);
   } catch (e) { showError(e.message); }

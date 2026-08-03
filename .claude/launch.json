@@ -6,6 +6,18 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["start"],
       "port": 3000
+    },
+    {
+      "name": "warrant-public",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "--experimental-strip-types",
+        "--env-file-if-exists=.env",
+        "src/server/main.ts",
+        "--public-demo",
+        "--port=3200"
+      ],
+      "port": 3200
     }
   ]
 }

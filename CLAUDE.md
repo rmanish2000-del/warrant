@@ -93,6 +93,23 @@ Decided so far:
   counts at approval, not settlement (a lapsed session keeps its hold — correct direction of error
   for a cap; README names the gap). Future reconciliation = appended release entries, not edits.
   Not built, disclosed.
+- **Public demo mode (P7)** — `--public-demo` / `WARRANT_PUBLIC_DEMO=1`, same binary, recording
+  surface unchanged. Per-visitor isolation: each visitor is a random 128-bit HttpOnly cookie id
+  mapping to its own ConsoleFlow (ids carry no data, so no signature; possession is the session;
+  store bounded 300 visitors / 2h idle TTL). `SessionRateLimiter` (3 sessions/visitor/hour,
+  20/site/UTC-day) gates **session creation only**, at the approve route: a blocked approval still
+  records normally — the human authority event is never rate limited, only the sandbox leg — and
+  the decision shows one plain sentence. Live compile returns 403 (no visitor spends Anthropic
+  credits; the cache file is unreachable for overwrite); the cache may load from
+  `WARRANT_COMPILE_CACHE_JSON` (platforms deploy from git; the file is gitignored). Page URLs are
+  RELATIVE so the console works behind a `/warrant` path-prefix proxy — keep them relative. The
+  public-only `POST /api/reset-demo` (fresh flow, same cookie, limiter budget survives) does not
+  contradict the no-reset-button decision: that decision protects the RECORDING surface, which
+  never runs public mode; judges legitimately need re-runs, and the ₹15,000 cap arithmetically
+  limits one warrant to at most 3 payment sessions, so the per-visitor limiter only binds across
+  resets. **The public demo requires one persistent Node process** — tenancy and payment watchers
+  are in-memory; serverless recycling would corrupt a judge's run mid-click. Do not deploy it to
+  a serverless platform.
 - **Counter scopes are deliberate — do not "clean up" the pair into one counter.** The DENY
   panel's cells are per-decision (`credentialRequestsFor()`, `outboundCallsFor()`) or
   snapshot-vs-now (sessions cell), because the panel's claim is about THIS refusal. The header
@@ -396,6 +413,7 @@ committed.** This is decided — do not re-open it.
 - `npm run demo:nopay` — the console with the payment leg OFF (the recording card's fallback if the payment leg misbehaves on camera). DENY, approvals, and the record are unaffected. Runs with a **frozen clock** (fixed epoch, +1s per read) so identical click sequences are byte-identical between runs. Flags are `--skip-payment --freeze-clock` — never rename to `--no-payment`: npm eats `--no-*` args as its own config negation.
 - `npm run prava:probe` — one throwaway sandbox session + saved-card list, raw response shapes printed with credential-bearing values redacted. Run before trusting any parser change.
 - `npm run gonogo` — the hour-32 Go/No-Go probe: one INR session through the real escalation path, ≤10s, verdict GO / DEGRADED / NO-GO (exit 0/2/1). Never touches the compile cache (stub warrant), never attempts the passkey.
+- `npm run start:public` — the console in public-demo mode (per-visitor isolation, payment rate limiting, live compile off). `--port=<n>` overrides the port on any server invocation.
 
 Record build, lint, single-test, and `npm run demo` invocations here as they are established, so
 this section stays the fastest way to run the project.
