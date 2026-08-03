@@ -135,7 +135,10 @@
     <h2>1 · Spending policy — plain English</h2>
     <textarea id="policy" rows="3">Buy only from approved suppliers — PackRight Supplies. Don't exceed ₹15,000 per week. Any order above ₹5,000 requires my approval. Never buy from a new supplier without approval.</textarea>
     <div class="row" style="margin-top:10px">
-      <button id="btn-compile" class="primary">Compile</button>
+      <!-- Hidden until the first state response proves this is NOT the public
+           demo — the public page must never render a live-compile control,
+           not even for the beat before state arrives. -->
+      <button id="btn-compile" class="primary hidden">Compile</button>
       <button id="btn-cache" class="hidden">Use cached compile</button>
       <span id="compile-note" class="streaming-note">Claude is writing clauses — live</span>
     </div>
@@ -519,7 +522,8 @@ function render() {
   if (!state) return;
   badge();
   $("public-banner").classList.toggle("hidden", !state.publicDemo);
-  $("btn-compile").classList.toggle("hidden", !!state.publicDemo);
+  // Shown only when state has PROVEN local mode; default in the HTML is hidden.
+  $("btn-compile").classList.toggle("hidden", state.publicDemo !== false);
   $("policy").readOnly = !!state.publicDemo;
   $("btn-cache").classList.toggle("hidden", !state.cacheAvailable || !!state.draft);
   $("c-sessions").textContent = state.counters.paymentSessions;
