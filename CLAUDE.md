@@ -347,6 +347,11 @@ Verified live (1 Aug, probe + implementation in `src/provider/prava.ts`):
 - Sessions are single-use, ~15 min, fresh session per attempt; a poll cycle costs ~3.26s.
 - Saved card auto-discovered at server boot via `/v1/listCards` (default card), or pinned with
   `PRAVA_CARD_ID`. Seeded history's approvals never execute — no session is created for the seed.
+- **`callback_url` verified end-to-end (3 Aug, founder's device, production deploy).** The sandbox
+  accepts it at session creation (201) and DOES redirect the visitor back to
+  `WARRANT_CALLBACK_URL` after passkey completion; the console's `?returned=1` handling lands the
+  returning visitor on the payment outcome panel. Set only on public deploys — never in local
+  `.env` (localhost is not HTTPS, and a local run would bounce the visitor to the public site).
 - **Lapsed or provider-closed sessions: no retry control — decided, PR-07 wins.** "No retry without
   re-evaluation" over EV-11's narrower reading. A lapsed session means the authorization must be
   made **again**, not resumed: the execution authority died with the session. On camera that means
