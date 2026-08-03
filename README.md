@@ -4,6 +4,9 @@
 plain English; Warrant turns them into an enforceable mandate and refuses any action the mandate
 doesn't allow.
 
+Writeup: [Claude compiles, code decides](writeup/claude-compiles-code-decides.md)
+— the design decision behind this, and its limits.
+
 ## What the demo shows
 
 1. You type a four-sentence spending policy.
