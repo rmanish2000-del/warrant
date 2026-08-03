@@ -182,6 +182,19 @@
   .hidden { display: none !important; }
   a { color: var(--green); }
 
+  /* Orientation lines — one short sentence under each heading. */
+  .orient { margin: -6px 0 12px; color: var(--muted); font-size: 15px; }
+
+  /* Journey stages (classes applied by render()):
+     locked = not yet reachable · current = where the user is · done = completed.
+     On desktop, locked sections are simply not shown — identical to the
+     submitted video's progressive appearance. The mobile rules live in the
+     narrow-screen block below. */
+  .journey.stage-locked { display: none; }
+
+  /* The single next action — mobile only; desktop never shows it. */
+  #next-bar { display: none; }
+
   /* ---------- motion — restrained, transform/opacity only, ≤250ms ---------- */
   @media (prefers-reduced-motion: no-preference) {
     .clause { animation: rise-in 180ms ease-out both; }
@@ -195,26 +208,63 @@
   @keyframes rise-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
   @keyframes settle  { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
-  /* ---------- narrow screens: nothing under 14px, nothing overflowing ---------- */
+  /* ---------- narrow screens: nothing under 14px, nothing overflowing,
+       tight density, guided journey ---------- */
   @media (max-width: 640px) {
-    main { padding: 10px 12px 48px; }
-    section { padding: 14px; }
-    header { gap: 8px; }
-    .counters { margin-left: 0; text-align: left; width: 100%; }
-    .deny-panel { padding: 16px; }
+    body { font-size: 15px; }
+    main { padding: 8px 10px 96px; } /* bottom clears the next-action bar — constant, no shift */
+    section { padding: 12px; margin-top: 10px; border-radius: 10px; }
+    h2 { font-size: 15px; margin: 0 0 8px; min-height: 28px; }
+    .orient { font-size: 14px; margin: -4px 0 8px; }
+    .row { gap: 8px; }
+    header { gap: 8px; padding: 10px 0; }
+    .wordmark { font-size: 20px; }
+    .counters { margin-left: 0; text-align: left; width: 100%; font-size: 14px; }
+    button { font-size: 15px; padding: 9px 14px; }
+    textarea { font-size: 15px; }
+    .deny-panel { padding: 14px; }
     .deny-head { gap: 10px; }
     .deny-verdict, .deny-clauseid { font-size: 42px; }
-    .deny-clausetext { font-size: 19px; }
-    .deny-evidence { font-size: 16px; }
-    .not-happened { grid-template-columns: 1fr; }
+    .deny-proposal { font-size: 16px; }
+    .deny-clausetext { font-size: 18px; margin: 10px 0 4px; }
+    .deny-evidence { font-size: 15px; margin: 4px 0 12px; }
+    .not-happened { grid-template-columns: 1fr; gap: 8px; }
+    .not-happened .cell { padding: 10px 12px; }
+    .not-happened .big { font-size: 26px; }
+    .not-happened .lbl, .not-happened .ok { font-size: 14px; }
     .verdict-big { font-size: 30px; }
-    .clause { grid-template-columns: 44px 1fr; font-size: 16px; }
-    .muted, .sets, th, .hash { font-size: 14px; }
-    .open-approval { font-size: 17px; padding: 14px 18px; }
-    .stream { font-size: 14px; }
+    .verdict-panel { padding: 14px; }
+    .clause { grid-template-columns: 40px 1fr; font-size: 15px; padding: 6px 2px; }
+    .muted, .sets, th, .hash, .payment, .validity { font-size: 14px; }
+    label.opt, details summary, fieldset legend { font-size: 15px; }
+    .open-approval { font-size: 16px; padding: 13px 16px; }
+    .stream { font-size: 14px; padding: 10px; }
+    table { font-size: 14px; }
+    td { padding: 12px 8px; } /* rows stay 44px touch targets at 14px type */
     /* Proposal buttons: one clean full-width row each, no ragged wrapping. */
     #canned { display: grid; grid-template-columns: 1fr; gap: 8px; width: 100%; }
     #canned button { width: 100%; text-align: left; }
+
+    /* Progressive disclosure — mobile only. Locked sections appear as muted
+       stubs (heading + orientation line); done sections collapse to their
+       heading, tap to reopen. Nothing is ever unreachable. */
+    .journey.stage-locked { display: block; opacity: .55; }
+    .journey.stage-locked .sec-body { display: none; }
+    .journey.stage-done > h2, .journey.stage-idle > h2 { cursor: pointer; }
+    .journey.stage-done > h2::after { content: " ✓"; color: var(--allow); }
+    .journey.stage-done:not(.user-open) .sec-body { display: none; }
+    .journey.stage-done:not(.user-open) .orient { display: none; }
+    /* idle = reachable next but not the current step (proposals before seed) */
+    .journey.stage-idle { opacity: .7; }
+    .journey.stage-idle:not(.user-open) .sec-body { display: none; }
+    .journey.stage-current { border-left: 4px solid var(--brass); }
+
+    /* The single next action. */
+    #next-bar:not(.hidden) { display: block; position: fixed; left: 0; right: 0; bottom: 0;
+      z-index: 50; background: var(--panel); border-top: 1px solid var(--line);
+      padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+      box-shadow: 0 -2px 10px rgba(31, 42, 36, .10); }
+    #next-btn { width: 100%; font-size: 16px; }
   }
 </style>
 </head>
@@ -237,8 +287,10 @@
     </span>
   </header>
 
-  <section id="policy-section">
+  <section id="policy-section" class="journey">
     <h2>1 · Spending policy — plain English</h2>
+    <p class="orient">Your rules, in plain English.</p>
+    <div class="sec-body">
     <textarea id="policy" rows="3">Buy only from approved suppliers — PackRight Supplies. Don't exceed ₹15,000 per week. Any order above ₹5,000 requires my approval. Never buy from a new supplier without approval.</textarea>
     <div id="policy-note" class="muted hidden" style="margin-top:6px">Fixed on the public demo so the replayed compile matches the policy it was produced from. Edit it freely when running locally.</div>
     <div class="row" style="margin-top:10px">
@@ -252,50 +304,63 @@
     </div>
     <div id="compile-error" class="banner-error"></div>
     <div id="stream" class="stream hidden" style="margin-top:12px"></div>
+    </div>
   </section>
 
-  <section id="draft-section" class="hidden">
+  <section id="draft-section" class="hidden journey">
     <h2>2 · Compiled clauses — a draft until you confirm</h2>
+    <p class="orient">Claude turned them into clauses. Some are ambiguous — you decide.</p>
+    <div class="sec-body">
     <div id="clauses"></div>
     <div id="flags" style="margin-top:14px"></div>
     <div class="row" style="margin-top:12px">
       <button id="btn-confirm" class="primary">Confirm — make it enforceable</button>
       <span id="confirm-note" class="muted">Confirmation is blocked while any question above is unanswered.</span>
     </div>
+    </div>
   </section>
 
-  <section id="warrant-section" class="hidden">
+  <section id="warrant-section" class="hidden journey">
     <h2>3 · Active warrant</h2>
+    <p class="orient">Enforceable from the moment you confirmed — validity stamped by the system.</p>
+    <div class="sec-body">
     <div class="validity" id="validity"></div>
     <div class="row" style="margin-top:10px">
       <button id="btn-seed">Seed prior history (₹4,000 — recorded approvals, no hidden setup)</button>
       <span id="seed-note" class="muted hidden" style="max-width:720px">Adds two real prior authorisations (₹2,500 escalated-and-approved, ₹1,500 allowed) as actual ledger entries — not a display value. The weekly total is derived by summing the record, which is what makes the later refusals land on accumulation rather than on any single amount.</span>
     </div>
+    </div>
   </section>
 
-  <section id="proposals-section" class="hidden">
+  <section id="proposals-section" class="hidden journey">
     <h2>4 · Agent proposals</h2>
+    <p class="orient">Ask to buy something. Warrant decides.</p>
+    <div class="sec-body">
     <div class="row" id="canned"></div>
     <div class="row" style="margin-top:10px">
       <input id="p-supplier" placeholder="Supplier" style="font:16px system-ui; padding:8px; border:1px solid var(--line); border-radius:8px">
       <input id="p-amount" placeholder="Amount (₹)" type="number" style="font:16px system-ui; padding:8px; width:140px; border:1px solid var(--line); border-radius:8px">
       <button id="btn-propose">Propose</button>
     </div>
+    </div>
   </section>
 
   <section id="detail-section" class="hidden">
     <h2>5 · Decision</h2>
+    <p class="orient">The verdict, and the clause that decided it.</p>
     <div id="detail"></div>
   </section>
 
   <section id="payment-dock" class="hidden">
     <h2>5b · Sandbox payment — the provider's surface</h2>
+    <p class="orient">The provider's sandbox leg — opened once, in its own tab.</p>
     <div id="dock-label" class="muted"></div>
     <div id="dock-body" style="margin-top:10px"></div>
   </section>
 
   <section id="feed-section" class="hidden">
     <h2>6 · Activity</h2>
+    <p class="orient">Every proposal, judged against the running total.</p>
     <div class="table-scroll">
       <table>
         <thead><tr><th>Time</th><th>Supplier</th><th class="num">Amount</th><th class="num">Prior authorized</th><th>Decision</th><th>Clause</th><th>Approval</th></tr></thead>
@@ -306,6 +371,7 @@
 
   <section id="records-section" class="hidden">
     <h2>7 · Authorization record — append-only, hash-chained (tamper-evident)</h2>
+    <p class="orient">Why each call was made — reconstructable by someone who wasn't in the room.</p>
     <div class="row" style="margin-bottom:8px">
       <div id="chain-status" class="muted" style="flex:1"></div>
       <a href="api/export" target="_blank" rel="noopener" style="font-size:16px; font-weight:600">Export JSON ↗</a>
@@ -318,6 +384,12 @@
     </div>
   </section>
 </main>
+
+<!-- One always-visible next action, mobile only. Derived from existing state;
+     performs existing controls or scrolls to them — no new capability. -->
+<div id="next-bar" class="hidden">
+  <button id="next-btn" class="primary"></button>
+</div>
 
 <script type="module">
 import { createOpenGate, createScrollGate } from "./dockScroll.mjs";
@@ -667,20 +739,123 @@ function render() {
   }
 
   const hasDraft = !!state.draft;
-  $("draft-section").classList.toggle("hidden", !hasDraft);
   if (hasDraft) { renderClauses(); renderFlags(); }
 
   const active = !!state.warrant;
-  $("warrant-section").classList.toggle("hidden", !active);
-  $("proposals-section").classList.toggle("hidden", !active);
+  // Journey stages. Desktop visibility is IDENTICAL to the recording: locked
+  // renders as display:none there; mobile shows muted stubs and collapses
+  // completed steps (tap the heading to reopen — nothing is unreachable).
+  const seeded = state.records.length > 0;
+  applyStage("policy-section", hasDraft ? "done" : "current");
+  applyStage("draft-section", !hasDraft ? "locked" : active ? "done" : "current");
+  applyStage("warrant-section", !active ? "locked" : seeded ? "done" : "current");
+  applyStage("proposals-section", !active ? "locked" : seeded ? "current" : "idle");
   $("feed-section").classList.toggle("hidden", !active || state.decisions.length === 0);
   $("records-section").classList.toggle("hidden", !active || state.records.length === 0);
   $("btn-seed").disabled = state.records.length > 0;
   if (active) { renderFeed(); renderRecords(); renderDetail(); }
   updateDock();
+  updateNextBar();
+}
+
+function applyStage(id, stage) {
+  const el = $(id);
+  el.classList.remove("stage-locked", "stage-current", "stage-done", "stage-idle", "hidden");
+  el.classList.add(`stage-${stage}`);
 }
 
 function setState(next) { state = next; lastStateJson = JSON.stringify(next); render(); }
+
+/**
+ * The single next action — one primary step derived from EXISTING state, in
+ * journey order. Performs the existing control, or scrolls to and focuses it
+ * when the step needs the user's own input. No new capability, no new calls.
+ */
+/* Same throttled-animation insurance as the payment dock: smooth first, and
+   if the frame budget never let it move, land instantly. The target MUST end
+   up on screen. */
+function scrollWithFallback(el, block = "center") {
+  el.scrollIntoView({ behavior: "smooth", block });
+  setTimeout(() => {
+    const r = el.getBoundingClientRect();
+    if (r.top > window.innerHeight || r.bottom < 0) el.scrollIntoView({ block });
+  }, 700);
+}
+
+function nextAction() {
+  if (!state) return null;
+  if (!state.draft) {
+    return state.cacheAvailable
+      ? { label: "Use cached compile", run: () => $("btn-cache").click() }
+      : null; // local fresh mode: typing + Compile is a desktop activity
+  }
+  if (!state.warrant) {
+    const unanswered = state.draft.flags.filter(
+      (f) => !document.querySelector(`input[name="flag-${f.id}"]:checked`),
+    );
+    if (unanswered.length > 0) {
+      return {
+        label: `Answer ${unanswered.length} question${unanswered.length === 1 ? "" : "s"}`,
+        run: () => {
+          const input = document.querySelector(`input[name="flag-${unanswered[0].id}"]`);
+          const holder = input.closest("details, fieldset");
+          if (holder && holder.tagName === "DETAILS") holder.open = true;
+          scrollWithFallback(holder);
+          input.focus({ preventScroll: true });
+        },
+      };
+    }
+    return { label: "Confirm — make it enforceable", run: () => $("btn-confirm").click() };
+  }
+  if (state.records.length === 0) {
+    return { label: "Seed prior history", run: () => $("btn-seed").click() };
+  }
+  const pending = state.decisions.find((d) => d.approval && d.approval.outcome === "pending");
+  if (pending) {
+    return { label: "Approve", run: () => { selectedDecision = pending.id; window.decide(pending.id, "approved"); } };
+  }
+  const anchor = document.querySelector("#dock-body a.open-approval");
+  if (anchor) {
+    return { label: "Open sandbox approval", run: () => { scrollWithFallback(anchor); anchor.click(); } };
+  }
+  const hasDeny = state.decisions.some((d) => d.decision === "DENY");
+  if (!hasDeny) {
+    // Seed history contributes two decisions; anything beyond it is the user's.
+    const userProposals = state.decisions.length - 2;
+    if (userProposals < 1) {
+      return {
+        label: "Choose a proposal",
+        run: () => {
+          scrollWithFallback($("canned"));
+          $("canned").querySelector("button")?.focus({ preventScroll: true });
+        },
+      };
+    }
+    return { label: "Try a refusal", run: () => propose("Unknown Vendor", 4900) };
+  }
+  return null; // journey complete — every control stays where it always was
+}
+
+let currentNext = null;
+function updateNextBar() {
+  currentNext = nextAction();
+  $("next-bar").classList.toggle("hidden", !currentNext);
+  if (currentNext) $("next-btn").textContent = currentNext.label;
+}
+$("next-btn").addEventListener("click", () => { currentNext?.run(); });
+// The answered-count updates live as radios are chosen (delegated — the
+// flag markup is re-rendered, the container is not).
+$("flags").addEventListener("change", updateNextBar);
+// Tap a completed (or waiting) section's heading to reopen it — mobile only.
+document.querySelectorAll("section.journey > h2").forEach((h) => {
+  h.addEventListener("click", () => {
+    if (!matchMedia("(max-width: 640px)").matches) return;
+    const sec = h.parentElement;
+    if (sec.classList.contains("stage-done") || sec.classList.contains("stage-idle")) {
+      sec.classList.toggle("user-open");
+    }
+  });
+});
 
 /* One short plain-language sentence — never an alert(), never a stack trace. */
 let errorTimer = null;
@@ -798,6 +973,12 @@ async function propose(supplier, amount) {
     const data = await api("api/propose", { supplier, amount });
     selectedDecision = data.decisionId;
     setState(data.state);
+    // The payoff must not be hunted for. Mobile only: the recording surface
+    // is desktop, where the camera never moves on a decision (test-pinned
+    // for the dock; kept true here by gating on width).
+    if (matchMedia("(max-width: 640px)").matches) {
+      scrollWithFallback($("detail-section"), "start");
+    }
   } catch (e) { showError(e.message); }
 }
 $("btn-propose").addEventListener("click", () =>
