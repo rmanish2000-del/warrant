@@ -101,10 +101,14 @@ the event.
 to 2 August 2026 Pacific / 1 to 3 August 2026 India time), and the commit history shows exactly
 which commits fall where.**
 
-**Correction — post-window polish.** Three commits fall after the build window closed
-(2 August 2026, 23:59 Pacific): `7ad9a94`, `6d4b3fa` and `e8178a3`, made between 12:33 and
-13:16 IST on 3 August — minutes to under an hour past the deadline. They touch presentation
-and documentation only (`public/index.html`, `CLAUDE.md`, `.env.example`);
-`git diff submission..HEAD -- src/` is empty — no evaluator, enforcement or clause-type code
-changed after the window. The annotated tag **`submission`** marks `8c7e657`, the last
-in-window commit, so the submission-time state is one checkout away.
+**Correction — post-window commits.** The submission-time state is the annotated tag
+**`submission`** (`8c7e657`), the last commit inside the build window — judging should read
+the repository at that tag. In the 47 minutes after the window closed (12:33–13:16 IST,
+3 August 2026), three commits landed: `7ad9a94`, `6d4b3fa` and `e8178a3` — presentation and
+documentation only (`public/index.html`, `CLAUDE.md`, `.env.example`). Commits after that
+closed window, up to the final form of this paragraph, are documentation corrections to this
+disclosure itself. The invariant: **no file under `src/` — evaluator, enforcement, clause
+types — has changed since the tag.** Verify: `git diff submission..HEAD -- src/` prints
+nothing. If development ever resumes after the event and touches `src/`, that diff will say
+so honestly — and the tag still preserves the exact submitted code. This paragraph is final
+and will not be edited again.
